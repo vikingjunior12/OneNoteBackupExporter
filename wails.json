@@ -1,0 +1,25 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "OneNote Backup Exporter",
+  "outputfilename": "OneNoteBackupExporter",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "JLI Software",
+    "email": ""
+  },
+  "info": {
+    "companyName": "JLI Software",
+    "productName": "OneNote Backup Exporter",
+    "productVersion": "0.5.0",
+    "copyright": "Copyright 2025"
+  },
+  "width": 1280,
+  "height": 1100,
+  "minWidth": 1000,
+  "minHeight": 900,
+  "resizable": true,
+  "defaultTheme": "system"
+}

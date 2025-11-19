@@ -1,0 +1,60 @@
+# Wails Build Outputs
+build/bin/
+build/windows/
+wails_build_log.txt
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# C# Build artifacts
+OneNoteHelper/bin/
+OneNoteHelper/obj/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Go Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+Thumbs.db
+desktop.ini
+.Spotlight-V100
+.Trashes
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+CLAUDE.md
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
