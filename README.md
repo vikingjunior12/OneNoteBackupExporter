@@ -1,66 +1,66 @@
 # OneNote Backup Exporter
 
-Eine Desktop-Anwendung zum Exportieren von Microsoft OneNote-Notizbüchern als `.onepkg`-Dateien über die OneNote COM-API.
+A desktop application for exporting Microsoft OneNote notebooks as `.onepkg` files via the OneNote COM API.
 
 ## Features
 
-- ✅ Direkter Export aus OneNote Desktop via COM-API
-- ✅ Export einzelner Notizbücher oder aller auf einmal
-- ✅ Vollständige Synchronisierung vor dem Export
-- ✅ Progress-Tracking und detaillierte Statusmeldungen
-- ✅ Moderne, benutzerfreundliche Oberfläche
-- ✅ Funktioniert mit mylms, Klassenotibücher (SharePoint)
+- ✅ Direct export from OneNote Desktop via COM API
+- ✅ Export individual notebooks or all at once
+- ✅ Full synchronization before export
+- ✅ Progress tracking and detailed status messages
+- ✅ Modern, user-friendly interface
+- ✅ Works with MyLMS, Class Notebooks (SharePoint)
 
-## Voraussetzungen
+## Requirements
 
-### Zur Laufzeit
+### Runtime
 - Windows 10/11
-- OneNote Desktop 2016 ("OneNote für Windows")
-- .NET 6.0 Runtime (normalerweise vorinstalliert)
+- OneNote Desktop 2016 ("OneNote for Windows")
+- .NET 6.0 Runtime (usually pre-installed)
 
-**Wichtig:** Die App funktioniert nur mit OneNote Desktop (2016 oder 365), nicht mit der UWP-App (Windows 10 OneNote) oder OneNote für Web/Mac.
+**Important:** The app only works with OneNote Desktop (2016 or 365), not with the UWP app (Windows 10 OneNote) or OneNote for Web/Mac.
 
-## Installation 
-setup.exe in relase runterladen.
-setup.exe ausführen
+## Installation
+Download setup.exe from releases.
+Run setup.exe
 
 
-## Verwendung
+## Usage
 
-1. Anwendung starten
-2. Die App erkennt automatisch OneNote Desktop und listet alle Notizbücher auf
-3. Notizbücher auswählen (einzeln oder alle)
-4. Zielordner wählen oder anpassen
-5. "Ausgewählte exportieren" oder "Alle exportieren" klicken
-6. Der Export-Ordner öffnet sich automatisch nach erfolgreichem Export
+1. Start the application
+2. The app automatically detects OneNote Desktop and lists all notebooks
+3. Select notebooks (individually or all)
+4. Choose or customize the destination folder
+5. Click "Export Selected" or "Export All"
+6. The export folder opens automatically after successful export
 
-## Architektur
+## Architecture
 
-Die Anwendung nutzt eine hybride Architektur:
+The application uses a hybrid architecture:
 
 - **Frontend:** JavaScript/Vite (UI)
-- **Backend:** Go/Wails (Anwendungslogik)
-- **COM Helper:** C# (OneNote-Integration)
+- **Backend:** Go/Wails (Application logic)
+- **COM Helper:** C# (OneNote integration)
 
-Der C# Helper kommuniziert über JSON-RPC (stdin/stdout) mit dem Go-Backend, welches wiederum über Wails-Bindings mit dem JavaScript-Frontend verbunden ist.
+The C# Helper communicates via JSON-RPC (stdin/stdout) with the Go backend, which in turn is connected to the JavaScript frontend via Wails bindings.
 
-## Bekannte Einschränkungen
+## Known Limitations
 
-- Kennwortgeschützte Abschnitte werden übersprungen
-- Sehr große Notizbücher (>500MB) können Timeouts verursachen
-- Erfordert OneNote Desktop (keine UWP-Version)
-- Nur Windows-kompatibel
+- Password-protected sections are skipped
+- Very large notebooks (>500MB) may cause timeouts
+- Requires OneNote Desktop (not the UWP version)
+- Windows-only
 
-## Fehlerbehebung
+## Troubleshooting
 
 
-### Export schlägt fehl
-- Prüfen Sie Schreibberechtigungen im Zielordner
-- Stellen Sie sicher, dass genügend Speicherplatz verfügbar ist
-- OneNotes vorher in der OneNote app vollständig zu Sychronisieren (SharePoint, OneDrive)
+### Export fails
+- Check write permissions in the destination folder
+- Ensure sufficient disk space is available
+- Fully synchronize notebooks in the OneNote app beforehand (SharePoint, OneDrive)
 
-## Lizenz
+## License
 
-Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe [LICENSE](LICENSE) für Details.
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
 Copyright © 2025 JLI Software
