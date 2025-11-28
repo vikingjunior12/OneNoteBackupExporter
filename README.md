@@ -11,7 +11,7 @@ A desktop application for exporting Microsoft OneNote notebooks as `.onepkg` fil
 - ✅ Modern, user-friendly interface
 - ✅ Works with MyLMS, Class Notebooks (SharePoint)
 
-![alt text](image.png)
+![alt text](image-1.png)
 
 ## Requirements
 
