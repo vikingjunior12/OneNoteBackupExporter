@@ -1,12 +1,12 @@
 # OneNote Helper
 
-C# Konsolen-Programm zur Kommunikation mit OneNote Desktop über die COM-API.
+C# console program for communicating with OneNote Desktop via the COM API.
 
-## Voraussetzungen
+## Prerequisites
 
-- .NET 6.0 SDK oder höher
-- OneNote Desktop 2016 (OneNote für Windows)
-- Windows (x86 oder x64)
+- .NET 6.0 SDK or higher
+- OneNote Desktop 2016 (OneNote for Windows)
+- Windows (x86 or x64)
 
 ## Build
 
@@ -14,16 +14,16 @@ C# Konsolen-Programm zur Kommunikation mit OneNote Desktop über die COM-API.
 dotnet build -c Release
 ```
 
-Das kompilierte Programm liegt dann unter: `bin/Release/net6.0-windows/OneNoteHelper.exe`
+The compiled program will be located at: `bin/Release/net6.0-windows/OneNoteHelper.exe`
 
-## Verwendung
+## Usage
 
-Das Programm kommuniziert über JSON-RPC über stdin/stdout mit dem Go-Backend.
+The program communicates via JSON-RPC over stdin/stdout with the Go backend.
 
-### Unterstützte Methoden
+### Supported Methods
 
 #### GetVersion
-Gibt Versionsinformationen und OneNote-Status zurück.
+Returns version information and OneNote status.
 
 Request:
 ```json
@@ -31,7 +31,7 @@ Request:
 ```
 
 #### GetNotebooks
-Listet alle OneNote-Notizbücher auf.
+Lists all OneNote notebooks.
 
 Request:
 ```json
@@ -39,7 +39,7 @@ Request:
 ```
 
 #### ExportNotebook
-Exportiert ein einzelnes Notizbuch als .onepkg-Datei.
+Exports a single notebook as a .onepkg file.
 
 Request:
 ```json
@@ -54,7 +54,7 @@ Request:
 ```
 
 #### ExportAllNotebooks
-Exportiert alle Notizbücher in einen Ordner.
+Exports all notebooks to a folder.
 
 Request:
 ```json
@@ -67,20 +67,20 @@ Request:
 }
 ```
 
-## Fehlerbehandlung
+## Error Handling
 
-Das Programm gibt JSON-RPC-konforme Error-Responses zurück:
+The program returns JSON-RPC compliant error responses:
 
-- `-32700`: Parse error (ungültiges JSON)
+- `-32700`: Parse error (invalid JSON)
 - `-32600`: Invalid Request
 - `-32601`: Method not found
 - `-32602`: Invalid params
 - `-32603`: Internal error
-- `-32000`: OneNote-spezifischer Fehler
+- `-32000`: OneNote-specific error
 
-## Hinweise
+## Notes
 
-- Das Programm ist als x86 kompiliert, um mit den meisten OneNote-Installationen kompatibel zu sein
-- OneNote muss installiert sein, aber nicht unbedingt laufen
-- Gesperrte oder kennwortgeschützte Abschnitte können nicht exportiert werden
-- Große Notizbücher können mehrere Minuten für den Export benötigen
+- The program is compiled as x86 to be compatible with most OneNote installations
+- OneNote must be installed, but does not necessarily need to be running
+- Locked or password-protected sections cannot be exported
+- Large notebooks may take several minutes to export

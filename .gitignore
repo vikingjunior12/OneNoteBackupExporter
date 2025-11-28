@@ -38,7 +38,7 @@ go.work
 *.swo
 *~
 .DS_Store
-
+.claude
 # OS files
 Thumbs.db
 desktop.ini

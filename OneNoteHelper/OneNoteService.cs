@@ -21,21 +21,21 @@ public class OneNoteService : IDisposable
 
             if (_oneNoteWasRunning)
             {
-                Console.Error.WriteLine("WARNUNG: OneNote läuft bereits. Dies kann zu Problemen führen.");
-                Console.Error.WriteLine("Empfehlung: Schließen Sie OneNote und starten Sie den Export erneut.");
+                Console.Error.WriteLine("WARNING: OneNote is already running. This may cause problems.");
+                Console.Error.WriteLine("Recommendation: Close OneNote and restart the export.");
 
                 // Try to connect anyway, but with awareness that it might hang
-                Console.Error.WriteLine("Versuche trotzdem, Verbindung herzustellen...");
+                Console.Error.WriteLine("Attempting to connect anyway...");
             }
 
             _oneNote = new Application();
-            Console.Error.WriteLine("OneNote COM-Verbindung erfolgreich hergestellt.");
+            Console.Error.WriteLine("OneNote COM connection established successfully.");
         }
         catch (Exception ex)
         {
             throw new InvalidOperationException(
-                "OneNote Desktop konnte nicht initialisiert werden. " +
-                "Bitte stellen Sie sicher, dass OneNote 2016 installiert ist.", ex);
+                "Failed to initialize OneNote Desktop. " +
+                "Please ensure that OneNote 2016 is installed.", ex);
         }
     }
 
@@ -52,11 +52,11 @@ public class OneNoteService : IDisposable
             {
                 // Try to get OneNote version info
                 _oneNote.GetHierarchy("", HierarchyScope.hsNotebooks, out string xml);
-                info.OneNoteVersion = "OneNote Desktop (COM API verfügbar)";
+                info.OneNoteVersion = "OneNote Desktop (COM API available)";
             }
             catch
             {
-                info.OneNoteVersion = "Unbekannt";
+                info.OneNoteVersion = "Unknown";
             }
         }
 
@@ -66,7 +66,7 @@ public class OneNoteService : IDisposable
     public List<NotebookInfo> GetNotebooks()
     {
         if (_oneNote == null)
-            throw new InvalidOperationException("OneNote ist nicht initialisiert");
+            throw new InvalidOperationException("OneNote is not initialized");
 
         var notebooks = new List<NotebookInfo>();
 
@@ -88,7 +88,7 @@ public class OneNoteService : IDisposable
                 var notebook = new NotebookInfo
                 {
                     Id = nb.Attribute("ID")?.Value ?? "",
-                    Name = nb.Attribute("name")?.Value ?? "Unbenannt",
+                    Name = nb.Attribute("name")?.Value ?? "Unnamed",
                     Path = nb.Attribute("path")?.Value ?? "",
                     LastModified = nb.Attribute("lastModifiedTime")?.Value ?? "",
                     IsCurrentlyViewed = nb.Attribute("isCurrentlyViewed")?.Value == "true"
@@ -99,7 +99,7 @@ public class OneNoteService : IDisposable
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException("Fehler beim Abrufen der Notizbücher: " + ex.Message, ex);
+            throw new InvalidOperationException("Error retrieving notebooks: " + ex.Message, ex);
         }
 
         return notebooks;
@@ -108,7 +108,7 @@ public class OneNoteService : IDisposable
     public ExportResult ExportNotebook(string notebookId, string destinationPath)
     {
         if (_oneNote == null)
-            throw new InvalidOperationException("OneNote ist nicht initialisiert");
+            throw new InvalidOperationException("OneNote is not initialized");
 
         var result = new ExportResult();
 
@@ -118,13 +118,13 @@ public class OneNoteService : IDisposable
             _oneNote.GetHierarchy(notebookId, HierarchyScope.hsSelf, out string xml);
             var xdoc = XDocument.Parse(xml);
             var ns = xdoc.Root?.Name.Namespace;
-            var notebookName = xdoc.Root?.Attribute("name")?.Value ?? "Notizbuch";
+            var notebookName = xdoc.Root?.Attribute("name")?.Value ?? "Notebook";
             var notebookPath = xdoc.Root?.Attribute("path")?.Value ?? "";
 
-            Console.Error.WriteLine($"=== Exportiere Notizbuch ===");
+            Console.Error.WriteLine($"=== Exporting Notebook ===");
             Console.Error.WriteLine($"Name: {notebookName}");
             Console.Error.WriteLine($"ID: {notebookId}");
-            Console.Error.WriteLine($"Pfad: {notebookPath}");
+            Console.Error.WriteLine($"Path: {notebookPath}");
 
             // Check if this is a SharePoint/OneDrive notebook (starts with https://)
             bool isCloudNotebook = notebookPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
@@ -132,8 +132,8 @@ public class OneNoteService : IDisposable
 
             if (isCloudNotebook)
             {
-                Console.Error.WriteLine($"ℹ INFO: Dies ist ein Cloud-Notizbuch (SharePoint/OneDrive)");
-                Console.Error.WriteLine($"ℹ Versuche .onepkg-Export mit vollständiger Synchronisierung...");
+                Console.Error.WriteLine($"ℹ INFO: This is a cloud notebook (SharePoint/OneDrive)");
+                Console.Error.WriteLine($"ℹ Attempting .onepkg export with full synchronization...");
             }
 
             // Sanitize filename
@@ -144,35 +144,35 @@ public class OneNoteService : IDisposable
 
             // Ensure destination directory exists
             Directory.CreateDirectory(destinationPath);
-            Console.Error.WriteLine($"Zielverzeichnis: {destinationPath}");
-            Console.Error.WriteLine($"Zieldatei: {fullPath}");
+            Console.Error.WriteLine($"Destination directory: {destinationPath}");
+            Console.Error.WriteLine($"Destination file: {fullPath}");
 
             // Step 1: Ensure notebook is open (critical for SharePoint/OneDrive notebooks)
-            Console.Error.WriteLine($"Öffne Notizbuch-Hierarchie...");
+            Console.Error.WriteLine($"Opening notebook hierarchy...");
             _oneNote.OpenHierarchy(
                 notebookPath,
                 "",
                 out string openedNotebookId,
                 CreateFileType.cftNone
             );
-            Console.Error.WriteLine($"Geöffnete Notebook-ID: {openedNotebookId}");
+            Console.Error.WriteLine($"Opened notebook ID: {openedNotebookId}");
 
             // Step 2: Force full synchronization - critical for cloud notebooks!
             // Note: One sync is usually enough if the notebook was already opened in OneNote Desktop
-            Console.Error.WriteLine($"Synchronisiere Notizbuch{(isCloudNotebook ? " (Cloud-Notizbuch)" : "")}...");
+            Console.Error.WriteLine($"Synchronizing notebook{(isCloudNotebook ? " (cloud notebook)" : "")}...");
 
             _oneNote.SyncHierarchy(openedNotebookId);
 
             // Wait for sync to complete (longer for cloud notebooks)
             int syncWaitMs = isCloudNotebook ? 5000 : 2000;
-            Console.Error.WriteLine($"Warte {syncWaitMs / 1000} Sekunden auf Synchronisierung...");
+            Console.Error.WriteLine($"Waiting {syncWaitMs / 1000} seconds for synchronization...");
             System.Threading.Thread.Sleep(syncWaitMs);
 
-            Console.Error.WriteLine("✓ Synchronisierung abgeschlossen");
+            Console.Error.WriteLine("✓ Synchronization completed");
 
             // Step 3: Publish to .onepkg format using the opened notebook ID
-            Console.Error.WriteLine($"Starte Export-Vorgang...");
-            Console.Error.WriteLine($"Hinweis: OneNote schreibt die Datei asynchron im Hintergrund");
+            Console.Error.WriteLine($"Starting export operation...");
+            Console.Error.WriteLine($"Note: OneNote writes the file asynchronously in the background");
 
             try
             {
@@ -183,16 +183,16 @@ public class OneNoteService : IDisposable
                     ""
                 );
 
-                Console.Error.WriteLine("✓ Publish()-Aufruf erfolgreich (OneNote schreibt jetzt im Hintergrund)");
+                Console.Error.WriteLine("✓ Publish() call successful (OneNote is now writing in the background)");
             }
             catch (System.Runtime.InteropServices.COMException ex)
             {
-                Console.Error.WriteLine($"✗ Publish() fehlgeschlagen: 0x{ex.HResult:X}");
+                Console.Error.WriteLine($"✗ Publish() failed: 0x{ex.HResult:X}");
 
                 // Retry once with additional sync for cloud notebooks
                 if (isCloudNotebook)
                 {
-                    Console.Error.WriteLine($"Versuche erneut nach zusätzlicher Synchronisierung...");
+                    Console.Error.WriteLine($"Retrying after additional synchronization...");
                     _oneNote.SyncHierarchy(openedNotebookId);
                     System.Threading.Thread.Sleep(5000);
 
@@ -203,7 +203,7 @@ public class OneNoteService : IDisposable
                         ""
                     );
 
-                    Console.Error.WriteLine("✓ Publish()-Aufruf erfolgreich (2. Versuch)");
+                    Console.Error.WriteLine("✓ Publish() call successful (2nd attempt)");
                 }
                 else
                 {
@@ -213,7 +213,7 @@ public class OneNoteService : IDisposable
 
             // Wait for the publish operation to complete
             // IMPORTANT: Publish() returns immediately but OneNote writes the file asynchronously!
-            Console.Error.WriteLine("Warte auf Abschluss des Export-Vorgangs (OneNote schreibt asynchron)...");
+            Console.Error.WriteLine("Waiting for export operation to complete (OneNote writes asynchronously)...");
             System.Threading.Thread.Sleep(2000);
 
             // Wait for file creation AND for stable file size (OneNote writes in background)
@@ -225,8 +225,8 @@ public class OneNoteService : IDisposable
             int maxAttempts = isCloudNotebook ? 150 : 90; // Cloud: up to 5 minutes, Local: up to 3 minutes
             int checkIntervalMs = 2000;
 
-            Console.Error.WriteLine($"Überwache Datei-Erstellung und Schreibfortschritt: {fullPath}");
-            Console.Error.WriteLine($"Hinweis: Große Notizbücher (100+ MB) können mehrere Minuten benötigen...");
+            Console.Error.WriteLine($"Monitoring file creation and write progress: {fullPath}");
+            Console.Error.WriteLine($"Note: Large notebooks (100+ MB) may take several minutes...");
 
             for (int i = 0; i < maxAttempts; i++)
             {
@@ -242,10 +242,10 @@ public class OneNoteService : IDisposable
                         if (stableCount >= 2)
                         {
                             // Size hasn't changed for 2 checks (4 seconds) and is > 0 = done!
-                            Console.Error.WriteLine($"✓ Datei vollständig geschrieben! Finale Größe: {FormatBytes(fileSize)}");
+                            Console.Error.WriteLine($"✓ File fully written! Final size: {FormatBytes(fileSize)}");
                             break;
                         }
-                        Console.Error.WriteLine($"Dateigröße stabil bei {FormatBytes(fileSize)} (Bestätigung {stableCount}/2)");
+                        Console.Error.WriteLine($"File size stable at {FormatBytes(fileSize)} (confirmation {stableCount}/2)");
                     }
                     else if (fileSize > 0)
                     {
@@ -253,17 +253,17 @@ public class OneNoteService : IDisposable
                         if (previousSize > 0)
                         {
                             double mbPerSec = (fileSize - previousSize) / 1024.0 / 1024.0 / (checkIntervalMs / 1000.0);
-                            Console.Error.WriteLine($"Datei wächst: {FormatBytes(fileSize)} (+{FormatBytes(fileSize - previousSize)}, ~{mbPerSec:0.0} MB/s)");
+                            Console.Error.WriteLine($"File growing: {FormatBytes(fileSize)} (+{FormatBytes(fileSize - previousSize)}, ~{mbPerSec:0.0} MB/s)");
                         }
                         else
                         {
-                            Console.Error.WriteLine($"Datei wächst: {FormatBytes(fileSize)}");
+                            Console.Error.WriteLine($"File growing: {FormatBytes(fileSize)}");
                         }
                         stableCount = 0; // Reset counter, file is still growing
                     }
                     else
                     {
-                        Console.Error.WriteLine($"Datei existiert, ist aber noch leer (0 Bytes) - OneNote schreibt noch...");
+                        Console.Error.WriteLine($"File exists but is still empty (0 bytes) - OneNote is still writing...");
                         stableCount = 0;
                     }
 
@@ -274,13 +274,13 @@ public class OneNoteService : IDisposable
                     // File doesn't exist yet
                     if (i == 0)
                     {
-                        Console.Error.WriteLine($"Datei noch nicht erstellt, warte...");
-                        Console.Error.WriteLine($"Hinweis: OneNote arbeitet im Hintergrund, dies kann bis zu 1 Minute dauern...");
+                        Console.Error.WriteLine($"File not yet created, waiting...");
+                        Console.Error.WriteLine($"Note: OneNote is working in the background, this may take up to 1 minute...");
                     }
                     else if (i % 10 == 0)
                     {
                         int secondsElapsed = (i * checkIntervalMs) / 1000;
-                        Console.Error.WriteLine($"Warte weiterhin auf Datei-Erstellung... ({secondsElapsed}s vergangen)");
+                        Console.Error.WriteLine($"Still waiting for file creation... ({secondsElapsed}s elapsed)");
                     }
                 }
 
@@ -290,75 +290,75 @@ public class OneNoteService : IDisposable
             if (fileCreated && fileSize > 0)
             {
                 result.Success = true;
-                result.Message = $"Notizbuch '{notebookName}' erfolgreich exportiert ({FormatBytes(fileSize)})";
+                result.Message = $"Notebook '{notebookName}' exported successfully ({FormatBytes(fileSize)})";
                 result.ExportedPath = fullPath;
-                Console.Error.WriteLine($"✓ Export erfolgreich: {fullPath} ({FormatBytes(fileSize)})");
+                Console.Error.WriteLine($"✓ Export successful: {fullPath} ({FormatBytes(fileSize)})");
             }
             else if (fileCreated && fileSize == 0)
             {
                 result.Success = false;
-                result.Message = $"Export fehlgeschlagen: Datei wurde erstellt, ist aber leer (0 Bytes). " +
-                               $"Dies deutet auf ein Problem während des Publish()-Vorgangs hin.";
-                Console.Error.WriteLine($"✗ Datei existiert, ist aber leer!");
-                Console.Error.WriteLine($"✗ OneNote hat möglicherweise den Export abgebrochen");
+                result.Message = $"Export failed: File was created but is empty (0 bytes). " +
+                               $"This indicates a problem during the Publish() operation.";
+                Console.Error.WriteLine($"✗ File exists but is empty!");
+                Console.Error.WriteLine($"✗ OneNote may have aborted the export");
             }
             else
             {
                 int timeoutMinutes = (maxAttempts * checkIntervalMs) / 60000;
                 result.Success = false;
-                result.Message = $"Timeout: Datei wurde nach {timeoutMinutes} Minuten nicht erstellt. " +
-                               $"WICHTIG: OneNote arbeitet möglicherweise noch im Hintergrund! " +
-                               $"Prüfen Sie {destinationPath} in einigen Minuten erneut.";
+                result.Message = $"Timeout: File was not created after {timeoutMinutes} minutes. " +
+                               $"IMPORTANT: OneNote may still be working in the background! " +
+                               $"Check {destinationPath} again in a few minutes.";
 
-                Console.Error.WriteLine($"✗ Timeout nach {timeoutMinutes} Minuten erreicht");
-                Console.Error.WriteLine($"✗ Datei existiert nicht: {fullPath}");
+                Console.Error.WriteLine($"✗ Timeout reached after {timeoutMinutes} minutes");
+                Console.Error.WriteLine($"✗ File does not exist: {fullPath}");
                 Console.Error.WriteLine($"");
-                Console.Error.WriteLine($"⚠ WICHTIG:");
-                Console.Error.WriteLine($"  OneNote schreibt die Datei möglicherweise noch im Hintergrund!");
-                Console.Error.WriteLine($"  Der Export-Befehl wurde erfolgreich an OneNote gesendet.");
-                Console.Error.WriteLine($"  Bei sehr großen Notizbüchern (>500 MB) kann der Schreibvorgang");
-                Console.Error.WriteLine($"  länger als {timeoutMinutes} Minuten dauern.");
+                Console.Error.WriteLine($"⚠ IMPORTANT:");
+                Console.Error.WriteLine($"  OneNote may still be writing the file in the background!");
+                Console.Error.WriteLine($"  The export command was successfully sent to OneNote.");
+                Console.Error.WriteLine($"  For very large notebooks (>500 MB), the write operation");
+                Console.Error.WriteLine($"  may take longer than {timeoutMinutes} minutes.");
                 Console.Error.WriteLine($"");
-                Console.Error.WriteLine($"Empfehlung:");
-                Console.Error.WriteLine($"  1. Lassen Sie das Programm NICHT neu starten (würde neuen Export starten)");
-                Console.Error.WriteLine($"  2. Prüfen Sie das Verzeichnis {destinationPath}");
-                Console.Error.WriteLine($"     in 5-10 Minuten erneut");
-                Console.Error.WriteLine($"  3. Überwachen Sie die OneNote.exe im Task-Manager (hohe CPU/Disk = arbeitet noch)");
+                Console.Error.WriteLine($"Recommendation:");
+                Console.Error.WriteLine($"  1. Do NOT restart the program (would start a new export)");
+                Console.Error.WriteLine($"  2. Check the directory {destinationPath}");
+                Console.Error.WriteLine($"     again in 5-10 minutes");
+                Console.Error.WriteLine($"  3. Monitor OneNote.exe in Task Manager (high CPU/Disk = still working)");
                 Console.Error.WriteLine($"");
-                Console.Error.WriteLine($"Falls nach 15 Minuten keine Datei vorhanden ist, mögliche Ursachen:");
-                Console.Error.WriteLine($"  - Passwortgeschützte Bereiche im Notizbuch");
-                Console.Error.WriteLine($"  - Notizbuch nicht vollständig synchronisiert");
-                Console.Error.WriteLine($"  - OneNote-Prozess hat keine Schreibrechte auf Zielverzeichnis");
-                Console.Error.WriteLine($"  - Bei SharePoint: Notizbuch ist offline oder nicht verfügbar");
+                Console.Error.WriteLine($"If no file exists after 15 minutes, possible causes:");
+                Console.Error.WriteLine($"  - Password-protected sections in the notebook");
+                Console.Error.WriteLine($"  - Notebook not fully synchronized");
+                Console.Error.WriteLine($"  - OneNote process has no write permissions to destination directory");
+                Console.Error.WriteLine($"  - For SharePoint: Notebook is offline or unavailable");
             }
         }
         catch (UnauthorizedAccessException ex)
         {
             result.Success = false;
-            result.Message = "Zugriff verweigert: " + ex.Message;
+            result.Message = "Access denied: " + ex.Message;
             Console.Error.WriteLine($"✗ UnauthorizedAccessException: {ex.Message}");
         }
         catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x8004201A))
         {
             result.Success = false;
-            result.Message = "OneNote Fehler 0x8004201A: Dieses Notizbuch kann nicht exportiert werden. " +
-                           "Mögliche Ursachen: Passwortgeschützte Bereiche, fehlende Synchronisierung, oder das Notizbuch ist offline.";
+            result.Message = "OneNote Error 0x8004201A: This notebook cannot be exported. " +
+                           "Possible causes: Password-protected sections, missing synchronization, or the notebook is offline.";
             Console.Error.WriteLine($"✗ COM Exception 0x8004201A");
-            Console.Error.WriteLine($"✗ Häufige Ursachen bei SharePoint-Notizbüchern:");
-            Console.Error.WriteLine($"  - Notizbuch enthält passwortgeschützte Bereiche");
-            Console.Error.WriteLine($"  - Notizbuch ist nicht vollständig synchronisiert");
-            Console.Error.WriteLine($"  - OneNote hat keinen Zugriff auf SharePoint");
-            Console.Error.WriteLine($"  - Das Notizbuch ist offline");
+            Console.Error.WriteLine($"✗ Common causes for SharePoint notebooks:");
+            Console.Error.WriteLine($"  - Notebook contains password-protected sections");
+            Console.Error.WriteLine($"  - Notebook is not fully synchronized");
+            Console.Error.WriteLine($"  - OneNote has no access to SharePoint");
+            Console.Error.WriteLine($"  - The notebook is offline");
             Console.Error.WriteLine($"");
-            Console.Error.WriteLine($"Empfohlene Lösungen:");
-            Console.Error.WriteLine($"  1. Öffnen Sie das Notizbuch in OneNote Desktop und warten Sie, bis 'Alle Änderungen synchronisiert' erscheint");
-            Console.Error.WriteLine($"  2. Entsperren Sie alle passwortgeschützten Abschnitte vor dem Export");
-            Console.Error.WriteLine($"  3. Lösen Sie alle Synchronisierungskonflikte im Notizbuch");
+            Console.Error.WriteLine($"Recommended solutions:");
+            Console.Error.WriteLine($"  1. Open the notebook in OneNote Desktop and wait until 'All changes synced' appears");
+            Console.Error.WriteLine($"  2. Unlock all password-protected sections before export");
+            Console.Error.WriteLine($"  3. Resolve all synchronization conflicts in the notebook");
         }
         catch (System.Runtime.InteropServices.COMException ex)
         {
             result.Success = false;
-            result.Message = $"OneNote COM-Fehler: 0x{ex.HResult:X} - {ex.Message}";
+            result.Message = $"OneNote COM error: 0x{ex.HResult:X} - {ex.Message}";
             Console.Error.WriteLine($"✗ COM Exception: {ex.Message}");
             Console.Error.WriteLine($"✗ HRESULT: 0x{ex.HResult:X}");
             Console.Error.WriteLine($"");
@@ -367,24 +367,24 @@ public class OneNoteService : IDisposable
             switch (ex.HResult)
             {
                 case unchecked((int)0x80042010):
-                    Console.Error.WriteLine($"Hinweis: Dieser Fehler deutet oft auf Synchronisierungsprobleme hin.");
-                    Console.Error.WriteLine($"Öffnen Sie das Notizbuch in OneNote Desktop und warten Sie auf vollständige Synchronisierung.");
+                    Console.Error.WriteLine($"Note: This error often indicates synchronization problems.");
+                    Console.Error.WriteLine($"Open the notebook in OneNote Desktop and wait for full synchronization.");
                     break;
                 case unchecked((int)0x80070005):
-                    Console.Error.WriteLine($"Hinweis: Zugriff verweigert. Überprüfen Sie Ihre Berechtigungen für dieses Notizbuch.");
+                    Console.Error.WriteLine($"Note: Access denied. Check your permissions for this notebook.");
                     break;
                 default:
-                    Console.Error.WriteLine($"Hinweis: Unbekannter Fehlercode. Versuchen Sie:");
-                    Console.Error.WriteLine($"  - Notizbuch in OneNote Desktop öffnen und manuell synchronisieren");
-                    Console.Error.WriteLine($"  - OneNote neu starten");
-                    Console.Error.WriteLine($"  - Bei SharePoint-Notizbüchern: Prüfen Sie Ihre Netzwerkverbindung");
+                    Console.Error.WriteLine($"Note: Unknown error code. Try:");
+                    Console.Error.WriteLine($"  - Open notebook in OneNote Desktop and manually synchronize");
+                    Console.Error.WriteLine($"  - Restart OneNote");
+                    Console.Error.WriteLine($"  - For SharePoint notebooks: Check your network connection");
                     break;
             }
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = "Fehler beim Exportieren: " + ex.Message;
+            result.Message = "Error during export: " + ex.Message;
             Console.Error.WriteLine($"✗ Exception: {ex.GetType().Name}");
             Console.Error.WriteLine($"✗ Message: {ex.Message}");
             Console.Error.WriteLine($"✗ StackTrace: {ex.StackTrace}");
@@ -406,7 +406,7 @@ public class OneNoteService : IDisposable
 
             foreach (var notebook in notebooks)
             {
-                Console.Error.WriteLine($"\nExportiere Notizbuch {exportedCount + 1}/{notebooks.Count}: {notebook.Name}");
+                Console.Error.WriteLine($"\nExporting notebook {exportedCount + 1}/{notebooks.Count}: {notebook.Name}");
 
                 var exportResult = ExportNotebook(notebook.Id, destinationPath);
 
@@ -423,14 +423,14 @@ public class OneNoteService : IDisposable
             }
 
             result.Success = failedCount == 0;
-            result.Message = $"Export abgeschlossen: {exportedCount} erfolgreich, {failedCount} fehlgeschlagen\n" +
+            result.Message = $"Export completed: {exportedCount} successful, {failedCount} failed\n" +
                            string.Join("\n", messages);
             result.ExportedPath = destinationPath;
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = "Fehler beim Exportieren mehrerer Notizbücher: " + ex.Message;
+            result.Message = "Error exporting multiple notebooks: " + ex.Message;
         }
 
         return result;
@@ -442,7 +442,7 @@ public class OneNoteService : IDisposable
 
         try
         {
-            Console.Error.WriteLine($"=== Alternative Export-Methode für Cloud-Notizbuch ===");
+            Console.Error.WriteLine($"=== Alternative Export Method for Cloud Notebook ===");
 
             // Sanitize filename
             var invalidChars = Path.GetInvalidFileNameChars();
@@ -452,7 +452,7 @@ public class OneNoteService : IDisposable
             var notebookDir = Path.Combine(destinationPath, sanitizedName);
             Directory.CreateDirectory(notebookDir);
 
-            Console.Error.WriteLine($"Exportiere als PDF (Cloud-Notebooks können nicht als .onepkg exportiert werden)");
+            Console.Error.WriteLine($"Exporting as PDF (cloud notebooks cannot be exported as .onepkg)");
 
             // Get full hierarchy with all pages
             _oneNote.GetHierarchy(notebookId, HierarchyScope.hsPages, out string xml);
@@ -462,7 +462,7 @@ public class OneNoteService : IDisposable
             if (ns == null)
             {
                 result.Success = false;
-                result.Message = "Fehler beim Parsen der Notizbuch-Hierarchie";
+                result.Message = "Error parsing notebook hierarchy";
                 return result;
             }
 
@@ -474,12 +474,12 @@ public class OneNoteService : IDisposable
             var sections = xdoc.Descendants(ns + "Section");
             foreach (var section in sections)
             {
-                var sectionName = section.Attribute("name")?.Value ?? "Unbenannt";
+                var sectionName = section.Attribute("name")?.Value ?? "Unnamed";
                 var sanitizedSectionName = string.Join("_", sectionName.Split(invalidChars));
                 var sectionDir = Path.Combine(notebookDir, sanitizedSectionName);
                 Directory.CreateDirectory(sectionDir);
 
-                Console.Error.WriteLine($"  Exportiere Abschnitt: {sectionName}");
+                Console.Error.WriteLine($"  Exporting section: {sectionName}");
 
                 // Export each page in this section
                 var pages = section.Descendants(ns + "Page");
@@ -487,7 +487,7 @@ public class OneNoteService : IDisposable
                 {
                     pageCount++;
                     var pageId = page.Attribute("ID")?.Value;
-                    var pageName = page.Attribute("name")?.Value ?? $"Seite{pageCount}";
+                    var pageName = page.Attribute("name")?.Value ?? $"Page{pageCount}";
                     var sanitizedPageName = string.Join("_", pageName.Split(invalidChars));
 
                     if (string.IsNullOrEmpty(pageId))
@@ -508,7 +508,7 @@ public class OneNoteService : IDisposable
                         else
                         {
                             failCount++;
-                            Console.Error.WriteLine($"    ✗ {pageName} (Datei nicht erstellt)");
+                            Console.Error.WriteLine($"    ✗ {pageName} (file not created)");
                         }
                     }
                     catch (Exception ex)
@@ -520,18 +520,18 @@ public class OneNoteService : IDisposable
             }
 
             result.Success = failCount == 0;
-            result.Message = $"Cloud-Notizbuch als PDF exportiert: {successCount} Seiten erfolgreich, {failCount} fehlgeschlagen\n" +
-                           $"⚠ Hinweis: Cloud-Notizbücher (SharePoint/OneDrive) können nicht als .onepkg exportiert werden.\n" +
-                           $"Alternative: Speichern Sie das Notizbuch in OneNote Desktop als lokales Notizbuch.";
+            result.Message = $"Cloud notebook exported as PDF: {successCount} pages successful, {failCount} failed\n" +
+                           $"⚠ Note: Cloud notebooks (SharePoint/OneDrive) cannot be exported as .onepkg.\n" +
+                           $"Alternative: Save the notebook in OneNote Desktop as a local notebook.";
             result.ExportedPath = notebookDir;
 
-            Console.Error.WriteLine($"Export abgeschlossen: {successCount}/{pageCount} Seiten");
+            Console.Error.WriteLine($"Export completed: {successCount}/{pageCount} pages");
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = $"Fehler beim alternativen Export: {ex.Message}";
-            Console.Error.WriteLine($"✗ Fehler: {ex.Message}");
+            result.Message = $"Error during alternative export: {ex.Message}";
+            Console.Error.WriteLine($"✗ Error: {ex.Message}");
         }
 
         return result;
@@ -560,17 +560,17 @@ public class OneNoteService : IDisposable
                 {
                     // IMPORTANT: We NEVER close the OneNote process programmatically!
                     // Reason: Even graceful closing can cause OneNote to show the error dialog
-                    // "OneNote konnte beim letzten Versuch nicht gestartet werden" on next start.
+                    // "OneNote could not be started on the last attempt" on next start.
                     //
                     // Instead, we just release the COM reference and let OneNote continue running.
                     // The user can manually close OneNote if desired.
 
-                    Console.Error.WriteLine("Gebe COM-Referenz frei (OneNote läuft weiter im Hintergrund)");
+                    Console.Error.WriteLine("Releasing COM reference (OneNote continues running in background)");
 
                     if (!_oneNoteWasRunning)
                     {
-                        Console.Error.WriteLine("Hinweis: OneNote wurde automatisch gestartet und läuft im Hintergrund.");
-                        Console.Error.WriteLine("         Sie können OneNote manuell schließen wenn gewünscht.");
+                        Console.Error.WriteLine("Note: OneNote was started automatically and is running in the background.");
+                        Console.Error.WriteLine("         You can manually close OneNote if desired.");
                     }
 
                     // Release the COM object properly to avoid keeping OneNote in memory
@@ -583,7 +583,7 @@ public class OneNoteService : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Fehler beim Aufräumen der OneNote-Verbindung: {ex.Message}");
+                    Console.Error.WriteLine($"Error cleaning up OneNote connection: {ex.Message}");
                 }
             }
 
