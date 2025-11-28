@@ -17,8 +17,8 @@ A desktop application for exporting Microsoft OneNote notebooks as `.onepkg` fil
 
 ### Runtime
 - Windows 10/11
-- OneNote Desktop 2016 ("OneNote for Windows")
-- .NET 6.0 Runtime (usually pre-installed)
+- OneNote Desktop 2016 or 365 ("OneNote for Windows")
+
 
 **Important:** The app only works with OneNote Desktop (2016 or 365), not with the UWP app (Windows 10 OneNote) or OneNote for Web/Mac.
 
