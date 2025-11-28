@@ -24,6 +24,7 @@ A desktop application for exporting Microsoft OneNote notebooks as `.onepkg` fil
 
 ## Installation
 Download setup.exe from releases.
+https://github.com/vikingjunior12/OneNoteBackupExporter/releases/download/v0.5.0/OneNoteBackupExporter_Setup_x64.exe
 Run setup.exe
 
 
