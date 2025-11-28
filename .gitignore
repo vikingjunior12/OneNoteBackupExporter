@@ -50,6 +50,7 @@ desktop.ini
 *.sqlite
 *.db
 CLAUDE.md
+.claude
 # Environment variables
 .env
 .env.local
