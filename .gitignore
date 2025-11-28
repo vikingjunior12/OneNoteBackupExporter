@@ -2,7 +2,7 @@
 build/bin/
 build/windows/
 wails_build_log.txt
-
+innosetup.iss
 # Frontend
 node_modules/
 frontend/dist/
