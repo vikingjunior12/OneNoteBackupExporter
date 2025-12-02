@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function BrowseFolder():Promise<string>;
 
+export function CancelExport():Promise<main.ExportResult>;
+
 export function ExportAllNotebooks(arg1:string):Promise<main.ExportResult>;
 
 export function ExportBackup(arg1:string):Promise<main.ExportResult>;

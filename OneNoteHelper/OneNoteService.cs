@@ -222,7 +222,8 @@ public class OneNoteService : IDisposable
             long fileSize = 0;
             long previousSize = -1;
             int stableCount = 0;
-            int maxAttempts = isCloudNotebook ? 150 : 90; // Cloud: up to 5 minutes, Local: up to 3 minutes
+            // Increased timeout: 20-30 minutes for large notebooks
+            int maxAttempts = isCloudNotebook ? 900 : 600; // Cloud: up to 30 minutes, Local: up to 20 minutes
             int checkIntervalMs = 2000;
 
             Console.Error.WriteLine($"Monitoring file creation and write progress: {fullPath}");
@@ -236,16 +237,24 @@ public class OneNoteService : IDisposable
                     fileSize = new FileInfo(fullPath).Length;
 
                     // Check if file size is stable (not changing = OneNote finished writing)
+                    // Wait 10 seconds to ensure OneNote is truly done writing
                     if (fileSize > 0 && fileSize == previousSize)
                     {
                         stableCount++;
-                        if (stableCount >= 2)
+                        // Wait for 5 checks (10 seconds) of stable size
+                        int requiredStableChecks = 5;
+
+                        if (stableCount >= requiredStableChecks)
                         {
-                            // Size hasn't changed for 2 checks (4 seconds) and is > 0 = done!
-                            Console.Error.WriteLine($"✓ File fully written! Final size: {FormatBytes(fileSize)}");
+                            // Size hasn't changed for 10 seconds = done!
+                            Console.Error.WriteLine($"✓ File fully written! Final size: {FormatBytes(fileSize)} (stable for {stableCount * 2} seconds)");
                             break;
                         }
-                        Console.Error.WriteLine($"File size stable at {FormatBytes(fileSize)} (confirmation {stableCount}/2)");
+
+                        if (stableCount == 1 || stableCount == 3)
+                        {
+                            Console.Error.WriteLine($"File size stable at {FormatBytes(fileSize)} for {stableCount * 2} seconds (waiting {requiredStableChecks * 2} seconds total)");
+                        }
                     }
                     else if (fileSize > 0)
                     {
@@ -393,6 +402,7 @@ public class OneNoteService : IDisposable
         return result;
     }
 
+    // Export all notebooks sequentially with live progress updates to stderr
     public ExportResult ExportAllNotebooks(string destinationPath)
     {
         var result = new ExportResult { Success = true };
@@ -403,10 +413,12 @@ public class OneNoteService : IDisposable
         try
         {
             var notebooks = GetNotebooks();
+            Console.Error.WriteLine($"=== Starting export of {notebooks.Count} notebook(s) ===");
 
             foreach (var notebook in notebooks)
             {
-                Console.Error.WriteLine($"\nExporting notebook {exportedCount + 1}/{notebooks.Count}: {notebook.Name}");
+                Console.Error.WriteLine($"");
+                Console.Error.WriteLine($"📓 Exporting notebook {exportedCount + failedCount + 1}/{notebooks.Count}: {notebook.Name}");
 
                 var exportResult = ExportNotebook(notebook.Id, destinationPath);
 
@@ -414,23 +426,29 @@ public class OneNoteService : IDisposable
                 {
                     exportedCount++;
                     messages.Add($"✓ {notebook.Name}");
+                    Console.Error.WriteLine($"✓ Export successful: {notebook.Name}");
                 }
                 else
                 {
                     failedCount++;
                     messages.Add($"✗ {notebook.Name}: {exportResult.Message}");
+                    Console.Error.WriteLine($"✗ Export failed: {notebook.Name}");
                 }
             }
 
+            Console.Error.WriteLine($"");
+            Console.Error.WriteLine($"=== Export completed: {exportedCount} successful, {failedCount} failed ===");
+
             result.Success = failedCount == 0;
-            result.Message = $"Export completed: {exportedCount} successful, {failedCount} failed\n" +
+            result.Message = $"Export abgeschlossen: {exportedCount} erfolgreich, {failedCount} fehlgeschlagen\n" +
                            string.Join("\n", messages);
             result.ExportedPath = destinationPath;
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.Message = "Error exporting multiple notebooks: " + ex.Message;
+            result.Message = "Fehler beim Exportieren mehrerer Notizbücher: " + ex.Message;
+            Console.Error.WriteLine($"✗ FATAL ERROR: {ex.Message}");
         }
 
         return result;

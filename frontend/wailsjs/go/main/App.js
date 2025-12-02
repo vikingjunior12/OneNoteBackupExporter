@@ -6,6 +6,10 @@ export function BrowseFolder() {
   return window['go']['main']['App']['BrowseFolder']();
 }
 
+export function CancelExport() {
+  return window['go']['main']['App']['CancelExport']();
+}
+
 export function ExportAllNotebooks(arg1) {
   return window['go']['main']['App']['ExportAllNotebooks'](arg1);
 }

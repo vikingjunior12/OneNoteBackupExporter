@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -181,19 +182,85 @@ func (h *OneNoteHelper) ExportNotebook(notebookID, destinationPath string) (*Exp
 	return &exportResult, nil
 }
 
-// ExportAllNotebooks exports all notebooks
-func (h *OneNoteHelper) ExportAllNotebooks(destinationPath string) (*ExportResult, error) {
+// ExportAllNotebooks exports all notebooks with real-time progress streaming
+func (h *OneNoteHelper) ExportAllNotebooks(destinationPath string, progressCallback func(string)) (*ExportResult, error) {
 	params := map[string]interface{}{
 		"destinationPath": destinationPath,
 	}
 
-	result, err := h.call("ExportAllNotebooks", params)
+	h.mu.Lock()
+	reqID := h.requestID
+	h.requestID++
+	h.mu.Unlock()
+
+	// Create request
+	request := jsonRpcRequest{
+		Method: "ExportAllNotebooks",
+		Params: params,
+		ID:     reqID,
+	}
+
+	requestJSON, err := json.Marshal(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fehler beim Erstellen der Anfrage: %w", err)
+	}
+
+	// Execute helper program
+	cmd := exec.Command(h.helperPath)
+	cmd.Stdin = bytes.NewReader(requestJSON)
+
+	// Hide the console window (Windows only)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	// Capture stderr for real-time progress updates
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("fehler beim Erstellen der stderr-Pipe: %w", err)
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("fehler beim Starten des Helpers: %w", err)
+	}
+
+	// Read stderr in real-time and send to callback
+	go func() {
+		scanner := bufio.NewScanner(stderrPipe)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if progressCallback != nil {
+				progressCallback(line)
+			}
+			// Also print to console for debugging
+			fmt.Fprintf(os.Stderr, "%s\n", line)
+		}
+	}()
+
+	// Wait for command to complete
+	err = cmd.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("fehler beim Ausführen des Helpers: %w", err)
+	}
+
+	// Parse response
+	var response jsonRpcResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		return nil, fmt.Errorf("fehler beim Parsen der Antwort: %w\nOutput: %s", err, stdout.String())
+	}
+
+	// Check for RPC error
+	if response.Error != nil {
+		return nil, fmt.Errorf("RPC-Fehler %d: %s", response.Error.Code, response.Error.Message)
 	}
 
 	var exportResult ExportResult
-	if err := json.Unmarshal(result, &exportResult); err != nil {
+	if err := json.Unmarshal(response.Result, &exportResult); err != nil {
 		return nil, fmt.Errorf("fehler beim Parsen des Exportergebnisses: %w", err)
 	}
 

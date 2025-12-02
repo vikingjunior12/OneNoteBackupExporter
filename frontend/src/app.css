@@ -219,6 +219,19 @@
     background: #545b62;
 }
 
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    flex: 1;
+    padding: 10px 15px;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #c82333;
+}
+
 /* Progress container */
 .progress-container {
     margin-top: 15px;
@@ -228,7 +241,7 @@
 .progress-bar-container {
     background: #e9ecef;
     border-radius: 5px;
-    height: 30px;
+    height: 35px;
     overflow: hidden;
     position: relative;
 }
@@ -237,28 +250,52 @@
     height: 100%;
     background: linear-gradient(90deg, #007bff, #0056b3);
     border-radius: 5px;
-    transition: width 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 0.9em;
-    font-weight: 600;
+    transition: width 0.5s ease, background 0.3s ease;
     position: relative;
+    min-width: 1%;
 }
 
-/* Indeterminate progress bar (for unknown duration) */
+/* Percentage text overlay - always centered and visible on top of bar */
+.progress-percent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #333;
+    font-size: 1em;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 10;
+    text-shadow:
+        0 0 3px rgba(255, 255, 255, 0.95),
+        0 0 6px rgba(255, 255, 255, 0.8),
+        0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Indeterminate progress bar (for unknown duration) - ORANGE/YELLOW for "working" */
 .progress-bar.indeterminate {
     width: 100% !important;
     background: linear-gradient(90deg,
-        #007bff 0%,
-        #0056b3 25%,
-        #007bff 50%,
-        #0056b3 75%,
-        #007bff 100%
+        #ffc107 0%,
+        #ff9800 25%,
+        #ffc107 50%,
+        #ff9800 75%,
+        #ffc107 100%
     );
     background-size: 200% 100%;
-    animation: progressAnimation 2s linear infinite;
+    animation: progressAnimation 1.5s linear infinite;
+}
+
+/* Green progress bar for completion */
+.progress-bar.completed {
+    background: linear-gradient(90deg, #28a745, #218838);
+    animation: none;
+}
+
+/* Blue progress bar for normal progress with known percentage */
+.progress-bar.normal {
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    animation: none;
 }
 
 @keyframes progressAnimation {

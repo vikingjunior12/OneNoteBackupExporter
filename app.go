@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"syscall"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -397,6 +398,7 @@ func (a *App) ExportNotebook(notebookID, destinationPath string) (*ExportResult,
 }
 
 // ExportAllNotebooks exports all notebooks to the specified destination
+// Runs asynchronously in background, sending real-time progress events to frontend
 func (a *App) ExportAllNotebooks(destinationPath string) (*ExportResult, error) {
 	if a.helper == nil {
 		return &ExportResult{
@@ -405,18 +407,122 @@ func (a *App) ExportAllNotebooks(destinationPath string) (*ExportResult, error) 
 		}, fmt.Errorf("OneNote Helper ist nicht verfügbar")
 	}
 
-	result, err := a.helper.ExportAllNotebooks(destinationPath)
-	if err != nil {
+	// Start export in a separate goroutine to not block the frontend
+	// This allows events to be sent in real-time while export is running
+	go func() {
+		fmt.Println("DEBUG: Starting async export...")
+
+		// Progress callback that parses stderr output from C# helper and sends events to frontend
+		progressCallback := func(line string) {
+			// Emit the raw line as a progress update
+			fmt.Fprintf(os.Stderr, "[Progress] %s\n", line)
+			wruntime.EventsEmit(a.ctx, "export-progress", map[string]interface{}{
+				"message": line,
+				"type":    "status",
+			})
+		}
+
+		// Call C# helper with progress streaming
+		result, err := a.helper.ExportAllNotebooks(destinationPath, progressCallback)
+
+		fmt.Println("DEBUG: Export finished, sending completion event...")
+
+		// Send completion event to frontend
+		if err != nil {
+			wruntime.EventsEmit(a.ctx, "export-complete", map[string]interface{}{
+				"success": false,
+				"message": err.Error(),
+			})
+		} else {
+			// Open the folder in explorer if successful
+			if result.Success {
+				a.openFolder(destinationPath)
+			}
+
+			wruntime.EventsEmit(a.ctx, "export-complete", map[string]interface{}{
+				"success":      result.Success,
+				"message":      result.Message,
+				"exportedPath": result.ExportedPath,
+			})
+		}
+	}()
+
+	// Return immediately so frontend doesn't block waiting for response
+	return &ExportResult{
+		Success: true,
+		Message: "Export wurde gestartet...",
+	}, nil
+}
+
+// CancelExport cancels a running export by killing both OneNoteHelper.exe and ONENOTE.EXE processes
+func (a *App) CancelExport() (*ExportResult, error) {
+	fmt.Println("DEBUG: CancelExport called - killing processes...")
+
+	killedProcesses := []string{}
+	var lastError error
+
+	// Kill OneNoteHelper.exe
+	if err := killProcessByName("OneNoteHelper.exe"); err != nil {
+		fmt.Printf("Warning: Failed to kill OneNoteHelper.exe: %v\n", err)
+		lastError = err
+	} else {
+		killedProcesses = append(killedProcesses, "OneNoteHelper.exe")
+		fmt.Println("✓ Killed OneNoteHelper.exe")
+	}
+
+	// Kill ONENOTE.EXE
+	if err := killProcessByName("ONENOTE.EXE"); err != nil {
+		fmt.Printf("Warning: Failed to kill ONENOTE.EXE: %v\n", err)
+		lastError = err
+	} else {
+		killedProcesses = append(killedProcesses, "ONENOTE.EXE")
+		fmt.Println("✓ Killed ONENOTE.EXE")
+	}
+
+	// Emit event to frontend to notify cancellation
+	wruntime.EventsEmit(a.ctx, "export-cancelled", map[string]interface{}{
+		"message": "Export wurde abgebrochen",
+	})
+
+	if len(killedProcesses) == 0 && lastError != nil {
 		return &ExportResult{
 			Success: false,
-			Message: err.Error(),
-		}, err
+			Message: fmt.Sprintf("Fehler beim Beenden der Prozesse: %v", lastError),
+		}, lastError
 	}
 
-	// Open the folder in explorer if successful
-	if result.Success {
-		a.openFolder(destinationPath)
+	message := fmt.Sprintf("Export abgebrochen. Beendete Prozesse: %v", killedProcesses)
+	if lastError != nil {
+		message += fmt.Sprintf("\nHinweis: Einige Prozesse konnten nicht beendet werden: %v", lastError)
 	}
 
-	return result, nil
+	return &ExportResult{
+		Success: true,
+		Message: message,
+	}, nil
+}
+
+// killProcessByName kills all processes with the given name (Windows-specific)
+func killProcessByName(processName string) error {
+	// Use taskkill command on Windows
+	cmd := exec.Command("taskkill", "/F", "/IM", processName)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Check if error is "process not found" (exit code 128)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == 128 {
+				// Process not found - not an error, it's just not running
+				fmt.Printf("Process %s not found (not running)\n", processName)
+				return nil
+			}
+		}
+		return fmt.Errorf("taskkill failed: %w, output: %s", err, string(output))
+	}
+
+	return nil
 }
