@@ -156,25 +156,25 @@ func (a *App) getChildItems(dirPath string, level int) []FileItem {
 func (a *App) ExportBackup(destPath string) ExportResult {
 	oneNotePath := a.GetOneNoteBackupPath()
 	if oneNotePath == "" {
-		return ExportResult{Success: false, Message: "Konnte den OneNote Backup-Pfad nicht ermitteln"}
+		return ExportResult{Success: false, Message: "Could not determine OneNote backup path"}
 	}
 
 	// Create destination directory if it doesn't exist
 	err := os.MkdirAll(destPath, 0755)
 	if err != nil {
-		return ExportResult{Success: false, Message: fmt.Sprintf("Fehler beim Erstellen des Zielverzeichnisses: %v", err)}
+		return ExportResult{Success: false, Message: fmt.Sprintf("Error creating destination directory: %v", err)}
 	}
 
 	// Copy the files
 	err = a.copyDirectory(oneNotePath, destPath)
 	if err != nil {
-		return ExportResult{Success: false, Message: fmt.Sprintf("Fehler beim Kopieren der Dateien: %v", err)}
+		return ExportResult{Success: false, Message: fmt.Sprintf("Error copying files: %v", err)}
 	}
 
 	// Open the folder in explorer
 	a.openFolder(destPath)
 
-	return ExportResult{Success: true, Message: "Export erfolgreich abgeschlossen!"}
+	return ExportResult{Success: true, Message: "Export completed successfully!"}
 }
 
 // copyDirectory recursively copies a directory tree
@@ -279,9 +279,9 @@ func (a *App) GetDefaultDownloadsPath() string {
 
 // BrowseFolder opens a native Windows folder selection dialog
 func (a *App) BrowseFolder() string {
-	// Wir verwenden die Wails-Runtime-Funktion für den Ordnerauswahldialog
+	// Use Wails runtime function for folder selection dialog
 	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
-		Title:            "Zielordner auswählen",
+		Title:            "Select Destination Folder",
 		DefaultDirectory: a.GetDefaultDownloadsPath(),
 	})
 
@@ -345,7 +345,7 @@ func (a *App) FormatSize(size int64) string {
 // GetOneNoteVersion returns version information about OneNote
 func (a *App) GetOneNoteVersion() (*VersionInfo, error) {
 	if a.helper == nil {
-		return nil, fmt.Errorf("OneNote Helper ist nicht verfügbar. Bitte stellen Sie sicher, dass OneNote Desktop installiert ist und das Helper-Programm kompiliert wurde.")
+		return nil, fmt.Errorf("OneNote Helper is not available. Please ensure that OneNote Desktop is installed and the Helper program is compiled.")
 	}
 
 	return a.helper.GetVersion()
@@ -356,7 +356,7 @@ func (a *App) GetNotebooks() ([]NotebookInfo, error) {
 	fmt.Println("DEBUG: GetNotebooks called")
 
 	if a.helper == nil {
-		errMsg := "OneNote Helper ist nicht verfügbar. Bitte stellen Sie sicher, dass OneNote Desktop installiert ist und das Helper-Programm kompiliert wurde."
+		errMsg := "OneNote Helper is not available. Please ensure that OneNote Desktop is installed and the Helper program is compiled."
 		fmt.Printf("ERROR: %s\n", errMsg)
 		return nil, fmt.Errorf(errMsg)
 	}
@@ -377,8 +377,8 @@ func (a *App) ExportNotebook(notebookID, destinationPath string) (*ExportResult,
 	if a.helper == nil {
 		return &ExportResult{
 			Success: false,
-			Message: "OneNote Helper ist nicht verfügbar",
-		}, fmt.Errorf("OneNote Helper ist nicht verfügbar")
+			Message: "OneNote Helper is not available",
+		}, fmt.Errorf("OneNote Helper is not available")
 	}
 
 	result, err := a.helper.ExportNotebook(notebookID, destinationPath)
@@ -403,8 +403,8 @@ func (a *App) ExportAllNotebooks(destinationPath string) (*ExportResult, error) 
 	if a.helper == nil {
 		return &ExportResult{
 			Success: false,
-			Message: "OneNote Helper ist nicht verfügbar",
-		}, fmt.Errorf("OneNote Helper ist nicht verfügbar")
+			Message: "OneNote Helper is not available",
+		}, fmt.Errorf("OneNote Helper is not available")
 	}
 
 	// Start export in a separate goroutine to not block the frontend
@@ -450,7 +450,7 @@ func (a *App) ExportAllNotebooks(destinationPath string) (*ExportResult, error) 
 	// Return immediately so frontend doesn't block waiting for response
 	return &ExportResult{
 		Success: true,
-		Message: "Export wurde gestartet...",
+		Message: "Export started...",
 	}, nil
 }
 
@@ -481,19 +481,19 @@ func (a *App) CancelExport() (*ExportResult, error) {
 
 	// Emit event to frontend to notify cancellation
 	wruntime.EventsEmit(a.ctx, "export-cancelled", map[string]interface{}{
-		"message": "Export wurde abgebrochen",
+		"message": "Export was cancelled",
 	})
 
 	if len(killedProcesses) == 0 && lastError != nil {
 		return &ExportResult{
 			Success: false,
-			Message: fmt.Sprintf("Fehler beim Beenden der Prozesse: %v", lastError),
+			Message: fmt.Sprintf("Error terminating processes: %v", lastError),
 		}, lastError
 	}
 
-	message := fmt.Sprintf("Export abgebrochen. Beendete Prozesse: %v", killedProcesses)
+	message := fmt.Sprintf("Export cancelled. Terminated processes: %v", killedProcesses)
 	if lastError != nil {
-		message += fmt.Sprintf("\nHinweis: Einige Prozesse konnten nicht beendet werden: %v", lastError)
+		message += fmt.Sprintf("\nNote: Some processes could not be terminated: %v", lastError)
 	}
 
 	return &ExportResult{

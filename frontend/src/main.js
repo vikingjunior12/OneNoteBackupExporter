@@ -9,35 +9,29 @@ document.querySelector('#app').innerHTML = `
     <div class="container">
         <div class="compact-header">
             <h1>OneNote Backup Exporter</h1>
-            <div class="version-info" id="version-info">Prüfe OneNote Installation...</div>
+            <div class="version-info" id="version-info">Checking OneNote installation...</div>
         </div>
 
         <div class="main-content">
             <div class="notebooks-section">
                 <div class="section-header">
-                    <h2>Verfügbare Notizbücher:</h2>
-                    <button class="btn btn-small" id="refresh-btn">Aktualisieren</button>
+                    <h2>Available Notebooks:</h2>
+                    <button class="btn btn-small" id="refresh-btn">Refresh</button>
                 </div>
-                <div class="notebook-list" id="notebook-list">Lade Notizbücher...</div>
+                <div class="notebook-list" id="notebook-list">Loading notebooks...</div>
             </div>
 
             <div class="export-section">
                 <div class="input-box">
-                    <input class="input" id="dest-path" type="text" placeholder="Zielordner (z.B. C:\\Backup)" autocomplete="off" />
-                    <button class="btn browse-btn" id="browse-btn">Durchsuchen...</button>
+                    <input class="input" id="dest-path" type="text" placeholder="Destination folder (e.g. C:\\Backup)" autocomplete="off" />
+                    <button class="btn browse-btn" id="browse-btn">Browse...</button>
                 </div>
                 <div class="export-buttons">
-                    <button class="btn btn-primary" id="export-selected-btn" disabled>Ausgewählte exportieren</button>
-                    <button class="btn btn-secondary" id="export-all-btn">Alle exportieren</button>
-                    <button class="btn btn-danger" id="cancel-btn" style="display: none;">❌ Abbrechen</button>
+                    <button class="btn btn-primary" id="export-selected-btn" disabled>Export Selected</button>
+                    <button class="btn btn-secondary" id="export-all-btn">Export All</button>
+                    <button class="btn btn-danger" id="cancel-btn" style="display: none;">❌ Cancel</button>
                 </div>
-                <div class="progress-container" id="progress-container" style="display: none;">
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="progress-bar"></div>
-                        <div class="progress-percent" id="progress-percent">0%</div>
-                    </div>
-                    <div class="progress-text" id="progress-text"></div>
-                </div>
+                <div class="export-status" id="export-status"></div>
                 <div class="status" id="status"></div>
             </div>
         </div>
@@ -54,10 +48,7 @@ const exportSelectedButton = document.getElementById("export-selected-btn");
 const exportAllButton = document.getElementById("export-all-btn");
 const cancelButton = document.getElementById("cancel-btn");
 const statusElement = document.getElementById("status");
-const progressContainer = document.getElementById("progress-container");
-const progressBar = document.getElementById("progress-bar");
-const progressPercent = document.getElementById("progress-percent");
-const progressText = document.getElementById("progress-text");
+const exportStatus = document.getElementById("export-status");
 
 let notebooks = [];
 let selectedNotebooks = new Set();
@@ -101,7 +92,7 @@ async function checkOneNoteVersion() {
             versionInfoElement.textContent = `✓ ${versionInfo.oneNoteVersion}`;
             versionInfoElement.className = "version-info success";
         } else {
-            versionInfoElement.textContent = "⚠ OneNote Desktop nicht gefunden";
+            versionInfoElement.textContent = "⚠ OneNote Desktop not found";
             versionInfoElement.className = "version-info warning";
         }
     } catch (err) {
@@ -114,18 +105,18 @@ async function checkOneNoteVersion() {
 // Load notebooks from OneNote
 async function loadNotebooks() {
     try {
-        notebookListElement.innerHTML = '<div class="loading">Lade Notizbücher...</div>';
+        notebookListElement.innerHTML = '<div class="loading">Loading notebooks...</div>';
 
         notebooks = await GetNotebooks();
 
         if (notebooks && notebooks.length > 0) {
             renderNotebooks(notebooks);
         } else {
-            notebookListElement.innerHTML = "<div class='no-notebooks'>Keine Notizbücher gefunden</div>";
+            notebookListElement.innerHTML = "<div class='no-notebooks'>No notebooks found</div>";
         }
     } catch (err) {
         console.error(err);
-        notebookListElement.innerHTML = `<div class='error'>Fehler beim Laden der Notizbücher: ${err.message}</div>`;
+        notebookListElement.innerHTML = `<div class='error'>Error loading notebooks: ${err.message}</div>`;
     }
 }
 
@@ -134,8 +125,8 @@ function renderNotebooks(notebooks) {
     let html = '<div class="notebook-items">';
 
     notebooks.forEach(notebook => {
-        const isViewed = notebook.isCurrentlyViewed ? ' (aktuell geöffnet)' : '';
-        const lastModified = notebook.lastModified ? formatDate(notebook.lastModified) : 'Unbekannt';
+        const isViewed = notebook.isCurrentlyViewed ? ' (currently open)' : '';
+        const lastModified = notebook.lastModified ? formatDate(notebook.lastModified) : 'Unknown';
 
         html += `
             <div class="notebook-item" data-id="${notebook.id}">
@@ -143,7 +134,7 @@ function renderNotebooks(notebooks) {
                     <input type="checkbox" value="${notebook.id}" class="notebook-check">
                     <div class="notebook-info">
                         <div class="notebook-name">📓 ${notebook.name}${isViewed}</div>
-                        <div class="notebook-meta">Zuletzt geändert: ${lastModified}</div>
+                        <div class="notebook-meta">Last modified: ${lastModified}</div>
                     </div>
                 </label>
             </div>
@@ -161,8 +152,8 @@ function renderNotebooks(notebooks) {
 function updateExportButtonState() {
     exportSelectedButton.disabled = selectedNotebooks.size === 0;
     exportSelectedButton.textContent = selectedNotebooks.size > 0
-        ? `${selectedNotebooks.size} Notizbuch(er) exportieren`
-        : 'Ausgewählte exportieren';
+        ? `Export ${selectedNotebooks.size} notebook(s)`
+        : 'Export Selected';
 }
 
 // Format date string
@@ -206,12 +197,12 @@ function setupBrowseButton() {
 
             if (selectedDir) {
                 destPathElement.value = selectedDir;
-                statusElement.textContent = "Pfad ausgewählt: " + selectedDir;
+                statusElement.textContent = "Path selected: " + selectedDir;
                 statusElement.className = "status info";
             }
         } catch (err) {
-            console.error("Fehler beim Öffnen des Ordnerauswahldialogs:", err);
-            statusElement.textContent = "Fehler beim Öffnen des Dateiauswahldialogs";
+            console.error("Error opening folder selection dialog:", err);
+            statusElement.textContent = "Error opening folder selection dialog";
             statusElement.className = "status error";
         }
     });
@@ -232,7 +223,7 @@ function setupExportButtons() {
     exportSelectedButton.addEventListener('click', async () => {
         // CRITICAL: Prevent multiple simultaneous exports
         if (exportInProgress) {
-            statusElement.textContent = "⚠ Ein Export läuft bereits! Bitte warten Sie bis dieser abgeschlossen ist.";
+            statusElement.textContent = "⚠ An export is already running! Please wait until it is completed.";
             statusElement.className = "status warning";
             return;
         }
@@ -240,13 +231,13 @@ function setupExportButtons() {
         const destPath = destPathElement.value.trim();
 
         if (!destPath) {
-            statusElement.textContent = "Bitte geben Sie einen Zielordner an";
+            statusElement.textContent = "Please specify a destination folder";
             statusElement.className = "status error";
             return;
         }
 
         if (selectedNotebooks.size === 0) {
-            statusElement.textContent = "Bitte wählen Sie mindestens ein Notizbuch aus";
+            statusElement.textContent = "Please select at least one notebook";
             statusElement.className = "status error";
             return;
         }
@@ -255,6 +246,10 @@ function setupExportButtons() {
         exportInProgress = true;
         cancelButton.style.display = "inline-block"; // Show cancel button
 
+        // Clear old status messages
+        statusElement.textContent = "";
+        statusElement.className = "status";
+
         await exportNotebooks(Array.from(selectedNotebooks), destPath);
     });
 
@@ -262,7 +257,7 @@ function setupExportButtons() {
     exportAllButton.addEventListener('click', async () => {
         // CRITICAL: Prevent multiple simultaneous exports
         if (exportInProgress) {
-            statusElement.textContent = "⚠ Ein Export läuft bereits! Bitte warten Sie bis dieser abgeschlossen ist.";
+            statusElement.textContent = "⚠ An export is already running! Please wait until it is completed.";
             statusElement.className = "status warning";
             return;
         }
@@ -270,7 +265,7 @@ function setupExportButtons() {
         const destPath = destPathElement.value.trim();
 
         if (!destPath) {
-            statusElement.textContent = "Bitte geben Sie einen Zielordner an";
+            statusElement.textContent = "Please specify a destination folder";
             statusElement.className = "status error";
             return;
         }
@@ -280,56 +275,38 @@ function setupExportButtons() {
             exportInProgress = true;
             cancelButton.style.display = "inline-block"; // Show cancel button
 
-            // Show initial progress bar at 1% - START VISIBLE
-            progressContainer.style.display = "block";
-            progressBar.style.background = "linear-gradient(90deg, #ffc107, #ff9800)";
-            progressBar.style.transition = "width 0.5s ease";
-            progressBar.style.width = "1%";
-            progressPercent.textContent = "0%";
-            progressText.innerHTML = '<span class="spinner"></span>Export wird gestartet...';
+            // Clear old status messages
+            statusElement.textContent = "";
+            statusElement.className = "status";
+
+            // Show status text
+            exportStatus.innerHTML = '<span class="spinner"></span>Starting export...';
 
             disableButtons(true);
 
             let lastMessageTime = Date.now();
-            let simulatedProgress = 1; // Start at 1% so bar is immediately visible
             let progressInterval = null;
 
-            console.log("[DEBUG] Starting progress simulation at 1%...");
+            console.log("[DEBUG] Starting export...");
 
-            // Function to update progress bar
-            const updateProgressBar = () => {
+            // Function to update status text
+            const updateStatusText = () => {
                 const elapsed = Math.floor((Date.now() - lastMessageTime) / 1000);
 
-                // Increase progress slowly until 80%
-                if (simulatedProgress < 80) {
-                    // Speed: reach 80% in about 10 minutes (600 seconds)
-                    // Increase by ~0.13% per second (80% / 600s)
-                    simulatedProgress += 0.27; // Every 2 seconds = 0.27% * 30 = ~8% per minute
-                    if (simulatedProgress > 80) simulatedProgress = 80;
-
-                    // Show progress with last message or heartbeat
-                    let message = "Export läuft... OneNote arbeitet im Hintergrund.";
-                    if (elapsed > 5) {
-                        message = `Export läuft... (${elapsed}s seit letztem Update)\nOneNote arbeitet im Hintergrund, bitte warten Sie.`;
-                    }
-
-                    // DIRECT DOM manipulation - force immediate update
-                    // Use Math.max(1, ...) to ensure bar is always at least 1% wide (visible)
-                    const displayProgress = Math.max(1, Math.round(simulatedProgress));
-                    progressBar.style.width = displayProgress + "%";
-                    progressPercent.textContent = Math.round(simulatedProgress) + "%";
-                    progressBar.style.background = "linear-gradient(90deg, #ffc107, #ff9800)";
-                    progressText.innerHTML = `<span class="spinner"></span>${message}`;
-
-                    console.log(`[DEBUG] Progress updated: ${displayProgress}% (actual: ${simulatedProgress.toFixed(2)}%)`);
+                let message = "Export running... OneNote is working in the background.";
+                if (elapsed > 5) {
+                    message = `Export running... (${elapsed}s since last update)\nOneNote is working in the background, please wait.`;
                 }
+
+                exportStatus.innerHTML = `<span class="spinner"></span>${message}`;
+                console.log(`[DEBUG] Status updated: ${message.substring(0, 50)}`);
             };
 
             // Call immediately once to show initial state
-            updateProgressBar();
+            updateStatusText();
 
             // Then update every 2 seconds
-            progressInterval = setInterval(updateProgressBar, 2000);
+            progressInterval = setInterval(updateStatusText, 2000);
 
             // Set up event listener for LIVE progress updates from C# helper (during export)
             EventsOn('export-progress', (data) => {
@@ -337,7 +314,7 @@ function setupExportButtons() {
                     lastMessageTime = Date.now();
                     console.log("[Progress] " + data.message);
                     // Update only the message text, keep the simulated progress bar
-                    progressText.innerHTML = `<span class="spinner"></span>${data.message}`;
+                    exportStatus.innerHTML = `<span class="spinner"></span>${data.message}`;
                 }
             });
 
@@ -361,7 +338,7 @@ function setupExportButtons() {
 
                 // Show GREEN completion bar at 100%
                 if (data.success) {
-                    showCompletion("Export erfolgreich abgeschlossen!");
+                    showCompletion("Export completed successfully!");
                     // Hide progress after 2 seconds and show final message
                     setTimeout(() => {
                         hideProgress();
@@ -396,7 +373,7 @@ function setupExportButtons() {
                 cancelButton.style.display = "none";
 
                 hideProgress();
-                statusElement.textContent = data.message || "Export wurde abgebrochen";
+                statusElement.textContent = data.message || "Export was cancelled";
                 statusElement.className = "status warning";
                 disableButtons(false);
             });
@@ -420,7 +397,7 @@ function setupExportButtons() {
 
             hideProgress();
             console.error(err);
-            statusElement.textContent = "Fehler beim Exportieren: " + err.message;
+            statusElement.textContent = "Error during export: " + err.message;
             statusElement.className = "status error";
             disableButtons(false);
         }
@@ -435,12 +412,12 @@ function setupCancelButton() {
         }
 
         // Ask for confirmation
-        if (!confirm("Möchten Sie den Export wirklich abbrechen?\n\nWarnung: Dies beendet OneNote und OneNoteHelper!")) {
+        if (!confirm("Do you really want to cancel the export?\n\nWarning: This will terminate OneNote and OneNoteHelper!")) {
             return;
         }
 
         console.log("[Cancel] User requested cancellation");
-        statusElement.textContent = "Export wird abgebrochen...";
+        statusElement.textContent = "Cancelling export...";
         statusElement.className = "status warning";
 
         try {
@@ -448,7 +425,7 @@ function setupCancelButton() {
             console.log("[Cancel] ", result.message);
         } catch (err) {
             console.error("[Cancel] Error: ", err);
-            statusElement.textContent = "Fehler beim Abbrechen: " + err.message;
+            statusElement.textContent = "Error during cancellation: " + err.message;
             statusElement.className = "status error";
         }
     });
@@ -459,57 +436,27 @@ async function exportNotebooks(notebookIds, destPath) {
     try {
         disableButtons(true);
 
+        // Clear old status and reset progress display
+        statusElement.textContent = "";
+        statusElement.className = "status";
+        exportStatus.innerHTML = '<span class="spinner"></span>Starting export...';
+
         let successCount = 0;
         let failCount = 0;
         const messages = [];
-        let dummyProgressInterval = null;
 
         for (let i = 0; i < notebookIds.length; i++) {
             const notebookId = notebookIds[i];
             const notebook = notebooks.find(nb => nb.id === notebookId);
-            const notebookName = notebook ? notebook.name : 'Unbekannt';
+            const notebookName = notebook ? notebook.name : 'Unknown';
 
-            // Calculate base progress (where we should be between notebooks)
-            const baseProgress = (i / notebookIds.length) * 100;
-            const nextProgress = ((i + 1) / notebookIds.length) * 100;
-            const progressRange = nextProgress - baseProgress;
+            // Show current status
+            exportStatus.innerHTML = `<span class="spinner"></span>Exporting notebook ${i + 1}/${notebookIds.length}: ${notebookName}\nOneNote is writing in the background, this may take several minutes...`;
 
-            // Start with base progress for this notebook
-            let currentDummyProgress = baseProgress;
-
-            // Show initial progress
-            progressContainer.style.display = "block";
-            progressBar.style.background = "linear-gradient(90deg, #ffc107, #ff9800)";
-            progressBar.style.transition = "width 0.5s ease";
-            progressBar.style.width = Math.max(1, Math.round(baseProgress)) + "%";
-            progressPercent.textContent = Math.round(baseProgress) + "%";
-            progressText.innerHTML = `<span class="spinner"></span>Exportiere Notizbuch ${i + 1}/${notebookIds.length}: ${notebookName}\nOneNote schreibt im Hintergrund, dies kann mehrere Minuten dauern...`;
-
-            console.log(`[DEBUG] Starting export of notebook ${i + 1}/${notebookIds.length} at ${Math.round(baseProgress)}%`);
-
-            // Start dummy progress animation within this notebook's range
-            dummyProgressInterval = setInterval(() => {
-                // Slowly increase within the range allocated to this notebook (but max 90% of range)
-                if (currentDummyProgress < baseProgress + (progressRange * 0.9)) {
-                    currentDummyProgress += progressRange * 0.02; // Increase by 2% of range every interval
-
-                    const displayProgress = Math.max(1, Math.round(currentDummyProgress));
-                    progressBar.style.width = displayProgress + "%";
-                    progressPercent.textContent = Math.round(currentDummyProgress) + "%";
-                    progressBar.style.background = "linear-gradient(90deg, #ffc107, #ff9800)";
-
-                    console.log(`[DEBUG] Dummy progress: ${displayProgress}% (actual: ${currentDummyProgress.toFixed(2)}%)`);
-                }
-            }, 1000); // Update every second
+            console.log(`[DEBUG] Starting export of notebook ${i + 1}/${notebookIds.length}`);
 
             try {
                 const result = await ExportNotebook(notebookId, destPath);
-
-                // Stop dummy progress
-                if (dummyProgressInterval) {
-                    clearInterval(dummyProgressInterval);
-                    dummyProgressInterval = null;
-                }
 
                 if (result.success) {
                     successCount++;
@@ -519,38 +466,23 @@ async function exportNotebooks(notebookIds, destPath) {
                     messages.push(`✗ ${notebookName}: ${result.message}`);
                 }
             } catch (err) {
-                // Stop dummy progress on error
-                if (dummyProgressInterval) {
-                    clearInterval(dummyProgressInterval);
-                    dummyProgressInterval = null;
-                }
-
                 failCount++;
                 messages.push(`✗ ${notebookName}: ${err.message}`);
             }
 
-            // Show completed progress for this notebook (jump to next milestone)
-            const completedProgress = ((i + 1) / notebookIds.length) * 100;
-            progressBar.style.width = Math.round(completedProgress) + "%";
-            progressPercent.textContent = Math.round(completedProgress) + "%";
-            progressBar.style.background = "linear-gradient(90deg, #007bff, #0056b3)"; // Blue for completed segment
-            progressText.innerHTML = `Abgeschlossen: ${i + 1}/${notebookIds.length} Notizbücher`;
+            // Show completed status for this notebook
+            exportStatus.innerHTML = `✓ Completed: ${i + 1}/${notebookIds.length} notebooks`;
 
-            console.log(`[DEBUG] Completed notebook ${i + 1}/${notebookIds.length} at ${Math.round(completedProgress)}%`);
+            console.log(`[DEBUG] Completed notebook ${i + 1}/${notebookIds.length}`);
 
-            // Brief pause to show the progress update
+            // Brief pause to show the status update
             await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        // Clean up interval if still running
-        if (dummyProgressInterval) {
-            clearInterval(dummyProgressInterval);
         }
 
         hideProgress();
 
         // Show final result
-        const finalMessage = `Export abgeschlossen: ${successCount} erfolgreich, ${failCount} fehlgeschlagen\n\n${messages.join('\n')}`;
+        const finalMessage = `Export completed: ${successCount} successful, ${failCount} failed\n\n${messages.join('\n')}`;
         statusElement.textContent = finalMessage;
         statusElement.className = failCount === 0 ? "status success" : "status warning";
 
@@ -563,7 +495,7 @@ async function exportNotebooks(notebookIds, destPath) {
     } catch (err) {
         hideProgress();
         console.error(err);
-        statusElement.textContent = "Fehler beim Exportieren: " + err.message;
+        statusElement.textContent = "Error during export: " + err.message;
         statusElement.className = "status error";
 
         // Release the global lock and hide cancel button
@@ -574,57 +506,21 @@ async function exportNotebooks(notebookIds, destPath) {
     }
 }
 
-// Show progress indicator with percentage
-// Color based on percentage: orange (0-79%), blue (80-99%), green (100%)
-function showProgress(message, percent) {
-    progressContainer.style.display = "block";
-
-    // CRITICAL: Force re-render by removing and re-adding classes
-    progressBar.className = 'progress-bar';
-
-    const roundedPercent = Math.round(percent);
-
-    // Color coding based on progress
-    if (percent >= 100) {
-        progressBar.classList.add('completed'); // Green
-    } else if (percent >= 80) {
-        progressBar.classList.add('normal'); // Blue (almost done)
-    } else {
-        // Orange/yellow for in-progress (0-79%)
-        progressBar.style.background = "linear-gradient(90deg, #ffc107, #ff9800)";
-        progressBar.style.transition = "width 0.5s ease"; // Smooth animation
-    }
-
-    // Force immediate style recalculation
-    void progressBar.offsetWidth;
-
-    progressBar.style.width = Math.min(percent, 100) + "%";
-    progressPercent.textContent = roundedPercent + "%";
-    progressText.innerHTML = `<span class="spinner"></span>${message}`;
+// Show status message
+function showProgress(message) {
+    exportStatus.innerHTML = `<span class="spinner"></span>${message}`;
     statusElement.textContent = "";
-
-    // Debug log to verify function is being called
-    console.log(`[UI] Progress: ${roundedPercent}% - ${message.substring(0, 50)}`);
 }
 
-// Show completion (GREEN bar)
+// Show completion message
 function showCompletion(message) {
-    progressContainer.style.display = "block";
-    progressBar.classList.remove('indeterminate', 'normal');
-    progressBar.classList.add('completed');
-    progressBar.style.width = "100%";
-    progressPercent.textContent = "✓ Fertig";
-    progressText.innerHTML = message;
+    exportStatus.innerHTML = `✓ ${message}`;
     statusElement.textContent = "";
 }
 
-// Hide progress indicator
+// Hide status message
 function hideProgress() {
-    progressContainer.style.display = "none";
-    progressBar.classList.remove('indeterminate');
-    progressBar.style.width = "0";
-    progressPercent.textContent = "";
-    progressText.textContent = "";
+    exportStatus.textContent = "";
 }
 
 // Disable/enable buttons during export
