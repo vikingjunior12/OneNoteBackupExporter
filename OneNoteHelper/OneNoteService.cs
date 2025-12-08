@@ -105,7 +105,7 @@ public class OneNoteService : IDisposable
         return notebooks;
     }
 
-    public ExportResult ExportNotebook(string notebookId, string destinationPath)
+    public ExportResult ExportNotebook(string notebookId, string destinationPath, string exportFormat = "onepkg")
     {
         if (_oneNote == null)
             throw new InvalidOperationException("OneNote is not initialized");
@@ -125,6 +125,7 @@ public class OneNoteService : IDisposable
             Console.Error.WriteLine($"Name: {notebookName}");
             Console.Error.WriteLine($"ID: {notebookId}");
             Console.Error.WriteLine($"Path: {notebookPath}");
+            Console.Error.WriteLine($"Format: {exportFormat}");
 
             // Check if this is a SharePoint/OneDrive notebook (starts with https://)
             bool isCloudNotebook = notebookPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
@@ -133,13 +134,21 @@ public class OneNoteService : IDisposable
             if (isCloudNotebook)
             {
                 Console.Error.WriteLine($"ℹ INFO: This is a cloud notebook (SharePoint/OneDrive)");
-                Console.Error.WriteLine($"ℹ Attempting .onepkg export with full synchronization...");
+                Console.Error.WriteLine($"ℹ Attempting .{exportFormat} export with full synchronization...");
             }
+
+            // Determine file extension based on export format
+            string fileExtension = exportFormat.ToLowerInvariant() switch
+            {
+                "xps" => ".xps",
+                "pdf" => ".pdf",
+                _ => ".onepkg"
+            };
 
             // Sanitize filename
             var invalidChars = Path.GetInvalidFileNameChars();
             var sanitizedName = string.Join("_", notebookName.Split(invalidChars));
-            var fileName = $"{sanitizedName}.onepkg";
+            var fileName = $"{sanitizedName}{fileExtension}";
             var fullPath = Path.Combine(destinationPath, fileName);
 
             // Ensure destination directory exists
@@ -170,7 +179,15 @@ public class OneNoteService : IDisposable
 
             Console.Error.WriteLine("✓ Synchronization completed");
 
-            // Step 3: Publish to .onepkg format using the opened notebook ID
+            // Step 3: Publish to the specified format using the opened notebook ID
+            // Determine PublishFormat enum value based on export format
+            PublishFormat format = exportFormat.ToLowerInvariant() switch
+            {
+                "xps" => PublishFormat.pfXPS,
+                "pdf" => PublishFormat.pfPDF,
+                _ => PublishFormat.pfOneNotePackage
+            };
+
             Console.Error.WriteLine($"Starting export operation...");
             Console.Error.WriteLine($"Note: OneNote writes the file asynchronously in the background");
 
@@ -179,7 +196,7 @@ public class OneNoteService : IDisposable
                 _oneNote.Publish(
                     openedNotebookId,  // Use the opened ID, not the original ID
                     fullPath,
-                    PublishFormat.pfOneNotePackage,
+                    format,
                     ""
                 );
 
@@ -199,7 +216,7 @@ public class OneNoteService : IDisposable
                     _oneNote.Publish(
                         openedNotebookId,
                         fullPath,
-                        PublishFormat.pfOneNotePackage,
+                        format,
                         ""
                     );
 
@@ -403,7 +420,7 @@ public class OneNoteService : IDisposable
     }
 
     // Export all notebooks sequentially with live progress updates to stderr
-    public ExportResult ExportAllNotebooks(string destinationPath)
+    public ExportResult ExportAllNotebooks(string destinationPath, string exportFormat = "onepkg")
     {
         var result = new ExportResult { Success = true };
         var exportedCount = 0;
@@ -414,13 +431,14 @@ public class OneNoteService : IDisposable
         {
             var notebooks = GetNotebooks();
             Console.Error.WriteLine($"=== Starting export of {notebooks.Count} notebook(s) ===");
+            Console.Error.WriteLine($"=== Export Format: {exportFormat} ===");
 
             foreach (var notebook in notebooks)
             {
                 Console.Error.WriteLine($"");
                 Console.Error.WriteLine($"📓 Exporting notebook {exportedCount + failedCount + 1}/{notebooks.Count}: {notebook.Name}");
 
-                var exportResult = ExportNotebook(notebook.Id, destinationPath);
+                var exportResult = ExportNotebook(notebook.Id, destinationPath, exportFormat);
 
                 if (exportResult.Success)
                 {

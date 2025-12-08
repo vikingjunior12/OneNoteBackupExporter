@@ -162,11 +162,12 @@ func (h *OneNoteHelper) GetNotebooks() ([]NotebookInfo, error) {
 	return notebooks, nil
 }
 
-// ExportNotebook exports a single notebook to .onepkg format
-func (h *OneNoteHelper) ExportNotebook(notebookID, destinationPath string) (*ExportResult, error) {
+// ExportNotebook exports a single notebook to the specified format (onepkg, mht, pdf)
+func (h *OneNoteHelper) ExportNotebook(notebookID, destinationPath, format string) (*ExportResult, error) {
 	params := map[string]interface{}{
 		"notebookId":      notebookID,
 		"destinationPath": destinationPath,
+		"format":          format,
 	}
 
 	result, err := h.call("ExportNotebook", params)
@@ -183,9 +184,10 @@ func (h *OneNoteHelper) ExportNotebook(notebookID, destinationPath string) (*Exp
 }
 
 // ExportAllNotebooks exports all notebooks with real-time progress streaming
-func (h *OneNoteHelper) ExportAllNotebooks(destinationPath string, progressCallback func(string)) (*ExportResult, error) {
+func (h *OneNoteHelper) ExportAllNotebooks(destinationPath, format string, progressCallback func(string)) (*ExportResult, error) {
 	params := map[string]interface{}{
 		"destinationPath": destinationPath,
+		"format":          format,
 	}
 
 	h.mu.Lock()

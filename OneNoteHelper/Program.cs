@@ -75,8 +75,11 @@ class Program
 
                     var notebookId = request.Params["notebookId"].ToString() ?? "";
                     var destPath = request.Params["destinationPath"].ToString() ?? "";
+                    var format = request.Params.ContainsKey("format")
+                        ? request.Params["format"].ToString() ?? "onepkg"
+                        : "onepkg";
 
-                    result = service.ExportNotebook(notebookId, destPath);
+                    result = service.ExportNotebook(notebookId, destPath, format);
                     break;
 
                 case "ExportAllNotebooks":
@@ -87,7 +90,10 @@ class Program
                     }
 
                     var destPathAll = request.Params["destinationPath"].ToString() ?? "";
-                    result = service.ExportAllNotebooks(destPathAll);
+                    var formatAll = request.Params.ContainsKey("format")
+                        ? request.Params["format"].ToString() ?? "onepkg"
+                        : "onepkg";
+                    result = service.ExportAllNotebooks(destPathAll, formatAll);
                     break;
 
                 default:

@@ -1,10 +1,11 @@
 # OneNote Backup Exporter
 
-A desktop application for exporting Microsoft OneNote notebooks as `.onepkg` files via the OneNote COM API.
+A desktop application for exporting Microsoft OneNote notebooks in multiple formats (OneNote Package, XPS, PDF) via the OneNote COM API.
 
 ## Features
 
 - ✅ Direct export from OneNote Desktop via COM API
+- ✅ **Multi-format export:** OneNote Package (.onepkg), XPS Document (.xps), PDF Document (.pdf)
 - ✅ Export individual notebooks or all at once
 - ✅ Full synchronization before export
 - ✅ Progress tracking and detailed status messages
@@ -23,9 +24,10 @@ A desktop application for exporting Microsoft OneNote notebooks as `.onepkg` fil
 **Important:** The app only works with OneNote Desktop (2016 or 365), not with the UWP app (Windows 10 OneNote) or OneNote for Web/Mac.
 
 ## Installation
-Download setup.exe from releases.
-[Download](https://github.com/vikingjunior12/OneNoteBackupExporter/releases/download/v0.7.0/OneNoteBackupExporter_Setup_x64_0.7.exe)
-Run setup.exe
+
+1. Download the latest `OneNoteBackupExporter_Setup_x64.exe` from [Releases](https://github.com/vikingjunior12/OneNoteBackupExporter/releases/latest)
+2. Run the setup.exe
+3. Follow the installation wizard
 
 
 ## Usage
@@ -33,9 +35,10 @@ Run setup.exe
 1. Start the application
 2. The app automatically detects OneNote Desktop and lists all notebooks
 3. Select notebooks (individually or all)
-4. Choose or customize the destination folder
-5. Click "Export Selected" or "Export All"
-6. The export folder opens automatically after successful export
+4. Choose your preferred export format (OneNote Package, XPS, or PDF)
+5. Choose or customize the destination folder
+6. Click "Export Selected" or "Export All"
+7. The export folder opens automatically after successful export
 
 ## Architecture
 
@@ -51,6 +54,7 @@ The C# Helper communicates via JSON-RPC (stdin/stdout) with the Go backend, whic
 
 - Password-protected sections are skipped
 - Very large notebooks (>500MB) may cause timeouts
+- PDF export may not preserve all OneNote formatting perfectly for complex page layouts
 - Requires OneNote Desktop (not the UWP version)
 - Windows-only
 

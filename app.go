@@ -372,8 +372,8 @@ func (a *App) GetNotebooks() ([]NotebookInfo, error) {
 	return notebooks, nil
 }
 
-// ExportNotebook exports a single notebook to .onepkg format
-func (a *App) ExportNotebook(notebookID, destinationPath string) (*ExportResult, error) {
+// ExportNotebook exports a single notebook to the specified format (onepkg, xps, pdf)
+func (a *App) ExportNotebook(notebookID, destinationPath, format string) (*ExportResult, error) {
 	if a.helper == nil {
 		return &ExportResult{
 			Success: false,
@@ -381,7 +381,7 @@ func (a *App) ExportNotebook(notebookID, destinationPath string) (*ExportResult,
 		}, fmt.Errorf("OneNote Helper is not available")
 	}
 
-	result, err := a.helper.ExportNotebook(notebookID, destinationPath)
+	result, err := a.helper.ExportNotebook(notebookID, destinationPath, format)
 	if err != nil {
 		return &ExportResult{
 			Success: false,
@@ -399,7 +399,7 @@ func (a *App) ExportNotebook(notebookID, destinationPath string) (*ExportResult,
 
 // ExportAllNotebooks exports all notebooks to the specified destination
 // Runs asynchronously in background, sending real-time progress events to frontend
-func (a *App) ExportAllNotebooks(destinationPath string) (*ExportResult, error) {
+func (a *App) ExportAllNotebooks(destinationPath, format string) (*ExportResult, error) {
 	if a.helper == nil {
 		return &ExportResult{
 			Success: false,
@@ -423,7 +423,7 @@ func (a *App) ExportAllNotebooks(destinationPath string) (*ExportResult, error) 
 		}
 
 		// Call C# helper with progress streaming
-		result, err := a.helper.ExportAllNotebooks(destinationPath, progressCallback)
+		result, err := a.helper.ExportAllNotebooks(destinationPath, format, progressCallback)
 
 		fmt.Println("DEBUG: Export finished, sending completion event...")
 

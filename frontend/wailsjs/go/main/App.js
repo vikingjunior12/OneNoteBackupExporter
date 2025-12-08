@@ -10,16 +10,16 @@ export function CancelExport() {
   return window['go']['main']['App']['CancelExport']();
 }
 
-export function ExportAllNotebooks(arg1) {
-  return window['go']['main']['App']['ExportAllNotebooks'](arg1);
+export function ExportAllNotebooks(arg1, arg2) {
+  return window['go']['main']['App']['ExportAllNotebooks'](arg1, arg2);
 }
 
 export function ExportBackup(arg1) {
   return window['go']['main']['App']['ExportBackup'](arg1);
 }
 
-export function ExportNotebook(arg1, arg2) {
-  return window['go']['main']['App']['ExportNotebook'](arg1, arg2);
+export function ExportNotebook(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ExportNotebook'](arg1, arg2, arg3);
 }
 
 export function FormatSize(arg1) {

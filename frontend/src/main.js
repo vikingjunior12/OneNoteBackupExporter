@@ -26,6 +26,14 @@ document.querySelector('#app').innerHTML = `
                     <input class="input" id="dest-path" type="text" placeholder="Destination folder (e.g. C:\\Backup)" autocomplete="off" />
                     <button class="btn browse-btn" id="browse-btn">Browse...</button>
                 </div>
+                <div class="format-selector">
+                    <label for="format-select">Export Format:</label>
+                    <select class="format-dropdown" id="format-select">
+                        <option value="onepkg">OneNote Package (.onepkg) - Recommended, best quality</option>
+                        <option value="xps">XPS Document (.xps) - Good layout preservation</option>
+                        <option value="pdf">PDF Document (.pdf) - Universal, lower quality</option>
+                    </select>
+                </div>
                 <div class="export-buttons">
                     <button class="btn btn-primary" id="export-selected-btn" disabled>Export Selected</button>
                     <button class="btn btn-secondary" id="export-all-btn">Export All</button>
@@ -42,6 +50,7 @@ document.querySelector('#app').innerHTML = `
 const versionInfoElement = document.getElementById("version-info");
 const notebookListElement = document.getElementById("notebook-list");
 const destPathElement = document.getElementById("dest-path");
+const formatSelect = document.getElementById("format-select");
 const browseButton = document.getElementById("browse-btn");
 const refreshButton = document.getElementById("refresh-btn");
 const exportSelectedButton = document.getElementById("export-selected-btn");
@@ -279,6 +288,9 @@ function setupExportButtons() {
             statusElement.textContent = "";
             statusElement.className = "status";
 
+            // Get selected format
+            const format = formatSelect.value;
+
             // Show status text
             exportStatus.innerHTML = '<span class="spinner"></span>Starting export...';
 
@@ -379,7 +391,7 @@ function setupExportButtons() {
             });
 
             // Start the export (returns immediately, runs in background)
-            const startResult = await ExportAllNotebooks(destPath);
+            const startResult = await ExportAllNotebooks(destPath, format);
             console.log("[Start] Export started: ", startResult.message);
             lastMessageTime = Date.now();
 
@@ -441,6 +453,9 @@ async function exportNotebooks(notebookIds, destPath) {
         statusElement.className = "status";
         exportStatus.innerHTML = '<span class="spinner"></span>Starting export...';
 
+        // Get selected format
+        const format = formatSelect.value;
+
         let successCount = 0;
         let failCount = 0;
         const messages = [];
@@ -456,7 +471,7 @@ async function exportNotebooks(notebookIds, destPath) {
             console.log(`[DEBUG] Starting export of notebook ${i + 1}/${notebookIds.length}`);
 
             try {
-                const result = await ExportNotebook(notebookId, destPath);
+                const result = await ExportNotebook(notebookId, destPath, format);
 
                 if (result.success) {
                     successCount++;

@@ -179,6 +179,42 @@
     flex-shrink: 0;       /* Schrumpft nie, bleibt immer sichtbar */
 }
 
+/* Format selector */
+.format-selector {
+    margin-top: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.format-selector label {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+}
+
+.format-dropdown {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 0.95em;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.format-dropdown:hover {
+    border-color: #007bff;
+}
+
+.format-dropdown:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
 /* Export buttons */
 .export-buttons {
     display: flex;

@@ -6,11 +6,11 @@ export function BrowseFolder():Promise<string>;
 
 export function CancelExport():Promise<main.ExportResult>;
 
-export function ExportAllNotebooks(arg1:string):Promise<main.ExportResult>;
+export function ExportAllNotebooks(arg1:string,arg2:string):Promise<main.ExportResult>;
 
 export function ExportBackup(arg1:string):Promise<main.ExportResult>;
 
-export function ExportNotebook(arg1:string,arg2:string):Promise<main.ExportResult>;
+export function ExportNotebook(arg1:string,arg2:string,arg3:string):Promise<main.ExportResult>;
 
 export function FormatSize(arg1:number):Promise<string>;
 
