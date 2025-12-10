@@ -8,12 +8,12 @@
   "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "JLI Software",
-    "email": ""
+    "email": "frostgrab@icloud.com"
   },
   "info": {
     "companyName": "JLI Software",
     "productName": "OneNote Backup Exporter",
-    "productVersion": "0.8.0",
+    "productVersion": "0.8.1",
     "copyright": "Copyright 2025"
   },
   "width": 1280,

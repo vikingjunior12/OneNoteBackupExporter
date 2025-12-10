@@ -10,6 +10,7 @@ public class OneNoteService : IDisposable
     private Application? _oneNote;
     private bool _disposed = false;
     private bool _oneNoteWasRunning = false;
+    private bool _oneNoteClosedAttempted = false;
 
     public OneNoteService()
     {
@@ -109,6 +110,9 @@ public class OneNoteService : IDisposable
     {
         if (_oneNote == null)
             throw new InvalidOperationException("OneNote is not initialized");
+
+        // Try to close OneNote gracefully before export (only happens once)
+        TryCloseOneNoteGracefully();
 
         var result = new ExportResult();
 
@@ -399,6 +403,24 @@ public class OneNoteService : IDisposable
                 case unchecked((int)0x80070005):
                     Console.Error.WriteLine($"Note: Access denied. Check your permissions for this notebook.");
                     break;
+                case unchecked((int)0x800706BA):
+                    Console.Error.WriteLine($"Note: RPC Server Unavailable (0x800706BA)");
+                    Console.Error.WriteLine($"");
+                    Console.Error.WriteLine($"This error typically occurs with:");
+                    Console.Error.WriteLine($"  1. LARGE notebooks (>100 MB) - OneNote may timeout during PDF/XPS conversion");
+                    Console.Error.WriteLine($"  2. Cloud notebooks (SharePoint/OneDrive) - Network connectivity issues");
+                    Console.Error.WriteLine($"  3. Notebooks with many embedded objects (images, files, ink)");
+                    Console.Error.WriteLine($"");
+                    Console.Error.WriteLine($"Solutions:");
+                    Console.Error.WriteLine($"  ✓ Use .onepkg format instead (works reliably for large notebooks)");
+                    Console.Error.WriteLine($"  ✓ Open the notebook in OneNote Desktop and wait for full sync");
+                    Console.Error.WriteLine($"  ✓ Close OneNote completely before export");
+                    Console.Error.WriteLine($"  ✓ For cloud notebooks: Ensure stable internet connection");
+                    Console.Error.WriteLine($"  ✓ Try exporting sections individually instead of entire notebook");
+                    Console.Error.WriteLine($"");
+                    Console.Error.WriteLine($"Technical reason: PDF/XPS export requires OneNote to render every page,");
+                    Console.Error.WriteLine($"which can take very long for large notebooks and may cause RPC timeout.");
+                    break;
                 default:
                     Console.Error.WriteLine($"Note: Unknown error code. Try:");
                     Console.Error.WriteLine($"  - Open notebook in OneNote Desktop and manually synchronize");
@@ -422,6 +444,9 @@ public class OneNoteService : IDisposable
     // Export all notebooks sequentially with live progress updates to stderr
     public ExportResult ExportAllNotebooks(string destinationPath, string exportFormat = "onepkg")
     {
+        // Try to close OneNote gracefully before export (only happens once)
+        TryCloseOneNoteGracefully();
+
         var result = new ExportResult { Success = true };
         var exportedCount = 0;
         var failedCount = 0;
@@ -472,107 +497,6 @@ public class OneNoteService : IDisposable
         return result;
     }
 
-    private ExportResult ExportCloudNotebookAlternative(string notebookId, string notebookName, string destinationPath)
-    {
-        var result = new ExportResult();
-
-        try
-        {
-            Console.Error.WriteLine($"=== Alternative Export Method for Cloud Notebook ===");
-
-            // Sanitize filename
-            var invalidChars = Path.GetInvalidFileNameChars();
-            var sanitizedName = string.Join("_", notebookName.Split(invalidChars));
-
-            // Create directory for this notebook
-            var notebookDir = Path.Combine(destinationPath, sanitizedName);
-            Directory.CreateDirectory(notebookDir);
-
-            Console.Error.WriteLine($"Exporting as PDF (cloud notebooks cannot be exported as .onepkg)");
-
-            // Get full hierarchy with all pages
-            _oneNote.GetHierarchy(notebookId, HierarchyScope.hsPages, out string xml);
-            var xdoc = XDocument.Parse(xml);
-            var ns = xdoc.Root?.Name.Namespace;
-
-            if (ns == null)
-            {
-                result.Success = false;
-                result.Message = "Error parsing notebook hierarchy";
-                return result;
-            }
-
-            int pageCount = 0;
-            int successCount = 0;
-            int failCount = 0;
-
-            // Export each section
-            var sections = xdoc.Descendants(ns + "Section");
-            foreach (var section in sections)
-            {
-                var sectionName = section.Attribute("name")?.Value ?? "Unnamed";
-                var sanitizedSectionName = string.Join("_", sectionName.Split(invalidChars));
-                var sectionDir = Path.Combine(notebookDir, sanitizedSectionName);
-                Directory.CreateDirectory(sectionDir);
-
-                Console.Error.WriteLine($"  Exporting section: {sectionName}");
-
-                // Export each page in this section
-                var pages = section.Descendants(ns + "Page");
-                foreach (var page in pages)
-                {
-                    pageCount++;
-                    var pageId = page.Attribute("ID")?.Value;
-                    var pageName = page.Attribute("name")?.Value ?? $"Page{pageCount}";
-                    var sanitizedPageName = string.Join("_", pageName.Split(invalidChars));
-
-                    if (string.IsNullOrEmpty(pageId))
-                        continue;
-
-                    try
-                    {
-                        var pdfPath = Path.Combine(sectionDir, $"{sanitizedPageName}.pdf");
-
-                        // Try to export as PDF
-                        _oneNote.Publish(pageId, pdfPath, PublishFormat.pfPDF, "");
-
-                        if (File.Exists(pdfPath))
-                        {
-                            successCount++;
-                            Console.Error.WriteLine($"    ✓ {pageName}");
-                        }
-                        else
-                        {
-                            failCount++;
-                            Console.Error.WriteLine($"    ✗ {pageName} (file not created)");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failCount++;
-                        Console.Error.WriteLine($"    ✗ {pageName}: {ex.Message}");
-                    }
-                }
-            }
-
-            result.Success = failCount == 0;
-            result.Message = $"Cloud notebook exported as PDF: {successCount} pages successful, {failCount} failed\n" +
-                           $"⚠ Note: Cloud notebooks (SharePoint/OneDrive) cannot be exported as .onepkg.\n" +
-                           $"Alternative: Save the notebook in OneNote Desktop as a local notebook.";
-            result.ExportedPath = notebookDir;
-
-            Console.Error.WriteLine($"Export completed: {successCount}/{pageCount} pages");
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.Message = $"Error during alternative export: {ex.Message}";
-            Console.Error.WriteLine($"✗ Error: {ex.Message}");
-        }
-
-        return result;
-    }
-
     private static string FormatBytes(long bytes)
     {
         string[] sizes = { "Bytes", "KB", "MB", "GB" };
@@ -584,6 +508,76 @@ public class OneNoteService : IDisposable
             len = len / 1024;
         }
         return $"{len:0.##} {sizes[order]}";
+    }
+
+    private void TryCloseOneNoteGracefully()
+    {
+        // Only attempt once per session
+        if (_oneNoteClosedAttempted)
+        {
+            return;
+        }
+        _oneNoteClosedAttempted = true;
+
+        try
+        {
+            Process[] oneNoteProcesses = Process.GetProcessesByName("ONENOTE");
+
+            if (oneNoteProcesses.Length == 0)
+            {
+                Console.Error.WriteLine("No OneNote processes found to close.");
+                return;
+            }
+
+            Console.Error.WriteLine($"INFO: Found {oneNoteProcesses.Length} OneNote process(es). Attempting graceful shutdown before export...");
+
+            foreach (Process process in oneNoteProcesses)
+            {
+                try
+                {
+                    // Try to close main window (like clicking X)
+                    bool closed = process.CloseMainWindow();
+
+                    if (closed)
+                    {
+                        Console.Error.WriteLine($"Sent close signal to OneNote (PID: {process.Id})");
+
+                        // Wait up to 5 seconds for graceful shutdown
+                        bool exited = process.WaitForExit(5000);
+
+                        if (exited)
+                        {
+                            Console.Error.WriteLine($"✓ OneNote closed gracefully (PID: {process.Id})");
+                        }
+                        else
+                        {
+                            Console.Error.WriteLine($"ℹ OneNote did not close within 5 seconds (PID: {process.Id}), continuing anyway...");
+                        }
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine($"ℹ Could not close OneNote main window (PID: {process.Id}), continuing anyway...");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"ℹ Error closing OneNote process (PID: {process.Id}): {ex.Message}");
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            // Give OneNote a moment to fully shut down
+            System.Threading.Thread.Sleep(1000);
+            Console.Error.WriteLine("Proceeding with export...");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"ℹ Error during OneNote close attempt: {ex.Message}");
+            Console.Error.WriteLine("Continuing with export anyway...");
+        }
     }
 
     public void Dispose()

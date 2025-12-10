@@ -36,7 +36,6 @@ document.querySelector('#app').innerHTML = `
                 </div>
                 <div class="export-buttons">
                     <button class="btn btn-primary" id="export-selected-btn" disabled>Export Selected</button>
-                    <button class="btn btn-secondary" id="export-all-btn">Export All</button>
                     <button class="btn btn-danger" id="cancel-btn" style="display: none;">❌ Cancel</button>
                 </div>
                 <div class="export-status" id="export-status"></div>
@@ -54,7 +53,6 @@ const formatSelect = document.getElementById("format-select");
 const browseButton = document.getElementById("browse-btn");
 const refreshButton = document.getElementById("refresh-btn");
 const exportSelectedButton = document.getElementById("export-selected-btn");
-const exportAllButton = document.getElementById("export-all-btn");
 const cancelButton = document.getElementById("cancel-btn");
 const statusElement = document.getElementById("status");
 const exportStatus = document.getElementById("export-status");
@@ -261,159 +259,6 @@ function setupExportButtons() {
 
         await exportNotebooks(Array.from(selectedNotebooks), destPath);
     });
-
-    // Export all notebooks
-    exportAllButton.addEventListener('click', async () => {
-        // CRITICAL: Prevent multiple simultaneous exports
-        if (exportInProgress) {
-            statusElement.textContent = "⚠ An export is already running! Please wait until it is completed.";
-            statusElement.className = "status warning";
-            return;
-        }
-
-        const destPath = destPathElement.value.trim();
-
-        if (!destPath) {
-            statusElement.textContent = "Please specify a destination folder";
-            statusElement.className = "status error";
-            return;
-        }
-
-        try {
-            // Set the global lock IMMEDIATELY
-            exportInProgress = true;
-            cancelButton.style.display = "inline-block"; // Show cancel button
-
-            // Clear old status messages
-            statusElement.textContent = "";
-            statusElement.className = "status";
-
-            // Get selected format
-            const format = formatSelect.value;
-
-            // Show status text
-            exportStatus.innerHTML = '<span class="spinner"></span>Starting export...';
-
-            disableButtons(true);
-
-            let lastMessageTime = Date.now();
-            let progressInterval = null;
-
-            console.log("[DEBUG] Starting export...");
-
-            // Function to update status text
-            const updateStatusText = () => {
-                const elapsed = Math.floor((Date.now() - lastMessageTime) / 1000);
-
-                let message = "Export running... OneNote is working in the background.";
-                if (elapsed > 5) {
-                    message = `Export running... (${elapsed}s since last update)\nOneNote is working in the background, please wait.`;
-                }
-
-                exportStatus.innerHTML = `<span class="spinner"></span>${message}`;
-                console.log(`[DEBUG] Status updated: ${message.substring(0, 50)}`);
-            };
-
-            // Call immediately once to show initial state
-            updateStatusText();
-
-            // Then update every 2 seconds
-            progressInterval = setInterval(updateStatusText, 2000);
-
-            // Set up event listener for LIVE progress updates from C# helper (during export)
-            EventsOn('export-progress', (data) => {
-                if (data && data.message) {
-                    lastMessageTime = Date.now();
-                    console.log("[Progress] " + data.message);
-                    // Update only the message text, keep the simulated progress bar
-                    exportStatus.innerHTML = `<span class="spinner"></span>${data.message}`;
-                }
-            });
-
-            // Set up event listener for completion
-            EventsOn('export-complete', (data) => {
-                console.log("[Complete] ", data);
-
-                // Clean up progress simulation
-                if (progressInterval) {
-                    clearInterval(progressInterval);
-                }
-
-                // Clean up event listeners
-                EventsOff('export-progress');
-                EventsOff('export-complete');
-                EventsOff('export-cancelled');
-
-                // Release the global lock and hide cancel button
-                exportInProgress = false;
-                cancelButton.style.display = "none";
-
-                // Show GREEN completion bar at 100%
-                if (data.success) {
-                    showCompletion("Export completed successfully!");
-                    // Hide progress after 2 seconds and show final message
-                    setTimeout(() => {
-                        hideProgress();
-                        statusElement.textContent = data.message;
-                        statusElement.className = "status success";
-                    }, 2000);
-                } else {
-                    hideProgress();
-                    statusElement.textContent = data.message;
-                    statusElement.className = "status error";
-                }
-
-                disableButtons(false);
-            });
-
-            // Set up event listener for cancellation
-            EventsOn('export-cancelled', (data) => {
-                console.log("[Cancelled] ", data);
-
-                // Clean up progress simulation
-                if (progressInterval) {
-                    clearInterval(progressInterval);
-                }
-
-                // Clean up event listeners
-                EventsOff('export-progress');
-                EventsOff('export-complete');
-                EventsOff('export-cancelled');
-
-                // Release the global lock and hide cancel button
-                exportInProgress = false;
-                cancelButton.style.display = "none";
-
-                hideProgress();
-                statusElement.textContent = data.message || "Export was cancelled";
-                statusElement.className = "status warning";
-                disableButtons(false);
-            });
-
-            // Start the export (returns immediately, runs in background)
-            const startResult = await ExportAllNotebooks(destPath, format);
-            console.log("[Start] Export started: ", startResult.message);
-            lastMessageTime = Date.now();
-
-            // Export is now running in background, events will arrive in real-time
-
-        } catch (err) {
-            // Clean up event listeners on error
-            EventsOff('export-progress');
-            EventsOff('export-complete');
-            EventsOff('export-cancelled');
-
-            // Release the global lock and hide cancel button
-            exportInProgress = false;
-            cancelButton.style.display = "none";
-
-            hideProgress();
-            console.error(err);
-            statusElement.textContent = "Error during export: " + err.message;
-            statusElement.className = "status error";
-            disableButtons(false);
-        }
-    });
 }
 
 // Setup cancel button
@@ -541,7 +386,6 @@ function hideProgress() {
 // Disable/enable buttons during export
 function disableButtons(disabled) {
     exportSelectedButton.disabled = disabled;
-    exportAllButton.disabled = disabled;
     refreshButton.disabled = disabled;
     browseButton.disabled = disabled;
 }

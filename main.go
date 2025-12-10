@@ -18,8 +18,8 @@ func main() {
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:  "OneNoteBackupExporter",
-		Width:  800,
-		Height: 600,
+		Width:  900, // ist wichtiger als wails.json
+		Height: 800,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
