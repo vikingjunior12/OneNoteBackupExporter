@@ -138,7 +138,6 @@ public class OneNoteService : IDisposable
             if (isCloudNotebook)
             {
                 Console.Error.WriteLine($"ℹ INFO: This is a cloud notebook (SharePoint/OneDrive)");
-                Console.Error.WriteLine($"ℹ Attempting .{exportFormat} export with full synchronization...");
             }
 
             // Determine file extension based on export format
@@ -170,20 +169,7 @@ public class OneNoteService : IDisposable
             );
             Console.Error.WriteLine($"Opened notebook ID: {openedNotebookId}");
 
-            // Step 2: Force full synchronization - critical for cloud notebooks!
-            // Note: One sync is usually enough if the notebook was already opened in OneNote Desktop
-            Console.Error.WriteLine($"Synchronizing notebook{(isCloudNotebook ? " (cloud notebook)" : "")}...");
-
-            _oneNote.SyncHierarchy(openedNotebookId);
-
-            // Wait for sync to complete (longer for cloud notebooks)
-            int syncWaitMs = isCloudNotebook ? 5000 : 2000;
-            Console.Error.WriteLine($"Waiting {syncWaitMs / 1000} seconds for synchronization...");
-            System.Threading.Thread.Sleep(syncWaitMs);
-
-            Console.Error.WriteLine("✓ Synchronization completed");
-
-            // Step 3: Publish to the specified format using the opened notebook ID
+            // Step 2: Publish to the specified format using the opened notebook ID
             // Determine PublishFormat enum value based on export format
             PublishFormat format = exportFormat.ToLowerInvariant() switch
             {
@@ -209,27 +195,7 @@ public class OneNoteService : IDisposable
             catch (System.Runtime.InteropServices.COMException ex)
             {
                 Console.Error.WriteLine($"✗ Publish() failed: 0x{ex.HResult:X}");
-
-                // Retry once with additional sync for cloud notebooks
-                if (isCloudNotebook)
-                {
-                    Console.Error.WriteLine($"Retrying after additional synchronization...");
-                    _oneNote.SyncHierarchy(openedNotebookId);
-                    System.Threading.Thread.Sleep(5000);
-
-                    _oneNote.Publish(
-                        openedNotebookId,
-                        fullPath,
-                        format,
-                        ""
-                    );
-
-                    Console.Error.WriteLine("✓ Publish() call successful (2nd attempt)");
-                }
-                else
-                {
-                    throw; // Rethrow for local notebooks
-                }
+                throw; // Rethrow exception
             }
 
             // Wait for the publish operation to complete
@@ -357,9 +323,9 @@ public class OneNoteService : IDisposable
                 Console.Error.WriteLine($"");
                 Console.Error.WriteLine($"If no file exists after 15 minutes, possible causes:");
                 Console.Error.WriteLine($"  - Password-protected sections in the notebook");
-                Console.Error.WriteLine($"  - Notebook not fully synchronized");
+                Console.Error.WriteLine($"  - Notebook is offline or not accessible");
                 Console.Error.WriteLine($"  - OneNote process has no write permissions to destination directory");
-                Console.Error.WriteLine($"  - For SharePoint: Notebook is offline or unavailable");
+                Console.Error.WriteLine($"  - For cloud notebooks: Network issues or offline");
             }
         }
         catch (UnauthorizedAccessException ex)
@@ -372,18 +338,17 @@ public class OneNoteService : IDisposable
         {
             result.Success = false;
             result.Message = "OneNote Error 0x8004201A: This notebook cannot be exported. " +
-                           "Possible causes: Password-protected sections, missing synchronization, or the notebook is offline.";
+                           "Possible causes: Password-protected sections or the notebook is offline.";
             Console.Error.WriteLine($"✗ COM Exception 0x8004201A");
-            Console.Error.WriteLine($"✗ Common causes for SharePoint notebooks:");
+            Console.Error.WriteLine($"✗ Common causes:");
             Console.Error.WriteLine($"  - Notebook contains password-protected sections");
-            Console.Error.WriteLine($"  - Notebook is not fully synchronized");
-            Console.Error.WriteLine($"  - OneNote has no access to SharePoint");
-            Console.Error.WriteLine($"  - The notebook is offline");
+            Console.Error.WriteLine($"  - OneNote has no access to SharePoint/OneDrive");
+            Console.Error.WriteLine($"  - The notebook is offline or not synced");
             Console.Error.WriteLine($"");
             Console.Error.WriteLine($"Recommended solutions:");
-            Console.Error.WriteLine($"  1. Open the notebook in OneNote Desktop and wait until 'All changes synced' appears");
+            Console.Error.WriteLine($"  1. Open the notebook in OneNote Desktop and ensure it's synced");
             Console.Error.WriteLine($"  2. Unlock all password-protected sections before export");
-            Console.Error.WriteLine($"  3. Resolve all synchronization conflicts in the notebook");
+            Console.Error.WriteLine($"  3. Check your network connection for cloud notebooks");
         }
         catch (System.Runtime.InteropServices.COMException ex)
         {
@@ -397,8 +362,8 @@ public class OneNoteService : IDisposable
             switch (ex.HResult)
             {
                 case unchecked((int)0x80042010):
-                    Console.Error.WriteLine($"Note: This error often indicates synchronization problems.");
-                    Console.Error.WriteLine($"Open the notebook in OneNote Desktop and wait for full synchronization.");
+                    Console.Error.WriteLine($"Note: This error often indicates the notebook is not accessible.");
+                    Console.Error.WriteLine($"Open the notebook in OneNote Desktop and ensure it loads correctly.");
                     break;
                 case unchecked((int)0x80070005):
                     Console.Error.WriteLine($"Note: Access denied. Check your permissions for this notebook.");
@@ -413,7 +378,7 @@ public class OneNoteService : IDisposable
                     Console.Error.WriteLine($"");
                     Console.Error.WriteLine($"Solutions:");
                     Console.Error.WriteLine($"  ✓ Use .onepkg format instead (works reliably for large notebooks)");
-                    Console.Error.WriteLine($"  ✓ Open the notebook in OneNote Desktop and wait for full sync");
+                    Console.Error.WriteLine($"  ✓ Open the notebook in OneNote Desktop first");
                     Console.Error.WriteLine($"  ✓ Close OneNote completely before export");
                     Console.Error.WriteLine($"  ✓ For cloud notebooks: Ensure stable internet connection");
                     Console.Error.WriteLine($"  ✓ Try exporting sections individually instead of entire notebook");
@@ -423,9 +388,9 @@ public class OneNoteService : IDisposable
                     break;
                 default:
                     Console.Error.WriteLine($"Note: Unknown error code. Try:");
-                    Console.Error.WriteLine($"  - Open notebook in OneNote Desktop and manually synchronize");
+                    Console.Error.WriteLine($"  - Open notebook in OneNote Desktop and ensure it loads");
                     Console.Error.WriteLine($"  - Restart OneNote");
-                    Console.Error.WriteLine($"  - For SharePoint notebooks: Check your network connection");
+                    Console.Error.WriteLine($"  - For cloud notebooks: Check your network connection");
                     break;
             }
         }

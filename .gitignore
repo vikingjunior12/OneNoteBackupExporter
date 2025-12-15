@@ -54,6 +54,7 @@ CLAUDE.md
 # Environment variables
 .env
 .env.local
+release.sh
 
 # Temporary files
 *.tmp

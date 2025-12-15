@@ -1,7 +1,7 @@
 import './style.css';
 import './app.css';
 
-import { GetNotebooks, ExportNotebook, ExportAllNotebooks, GetOneNoteVersion, BrowseFolder, GetDefaultDownloadsPath, CancelExport } from '../wailsjs/go/main/App';
+import { GetNotebooks, ExportNotebook, ExportNotebookNoExplorer, ExportAllNotebooks, GetOneNoteVersion, BrowseFolder, GetDefaultDownloadsPath, CancelExport, ExportBackup, CheckLocalBackupAvailable, OpenFolder } from '../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
 
 // Initialize the app with a nice UI
@@ -32,7 +32,11 @@ document.querySelector('#app').innerHTML = `
                         <option value="onepkg">OneNote Package (.onepkg) - Recommended, best quality</option>
                         <option value="xps">XPS Document (.xps) - Good layout preservation</option>
                         <option value="pdf">PDF Document (.pdf) - Universal, lower quality</option>
+                        <option value="localbackup" id="localbackup-option">Local Backup Copy - Fast, direct file copy</option>
                     </select>
+                </div>
+                <div class="backup-warning" id="backup-warning" style="display: none;">
+                    ⚠️ Local backup copies ALL notebooks (selection will be ignored)
                 </div>
                 <div class="export-buttons">
                     <button class="btn btn-primary" id="export-selected-btn" disabled>Export Selected</button>
@@ -50,6 +54,8 @@ const versionInfoElement = document.getElementById("version-info");
 const notebookListElement = document.getElementById("notebook-list");
 const destPathElement = document.getElementById("dest-path");
 const formatSelect = document.getElementById("format-select");
+const backupWarning = document.getElementById("backup-warning");
+const localbackupOption = document.getElementById("localbackup-option");
 const browseButton = document.getElementById("browse-btn");
 const refreshButton = document.getElementById("refresh-btn");
 const exportSelectedButton = document.getElementById("export-selected-btn");
@@ -59,6 +65,7 @@ const exportStatus = document.getElementById("export-status");
 
 let notebooks = [];
 let selectedNotebooks = new Set();
+let backupAvailability = null;
 
 // Track if listeners are already set up (prevents duplicates on HMR reload)
 let listenersInitialized = false;
@@ -69,6 +76,7 @@ let exportInProgress = false;
 // Initialize the app
 document.addEventListener('DOMContentLoaded', async () => {
     await checkOneNoteVersion();
+    await checkLocalBackupAvailability();
     await loadNotebooks();
 
     // Only set up listeners once (prevents memory leaks on HMR reload)
@@ -78,6 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupRefreshButton();
         setupExportButtons();
         setupCancelButton();
+        setupFormatChangeListener();
         listenersInitialized = true;
     }
 
@@ -106,6 +115,29 @@ async function checkOneNoteVersion() {
         console.error("Error checking OneNote version:", err);
         versionInfoElement.textContent = "⚠ " + err.message;
         versionInfoElement.className = "version-info error";
+    }
+}
+
+// Check if local OneNote backups are available
+async function checkLocalBackupAvailability() {
+    try {
+        backupAvailability = await CheckLocalBackupAvailable();
+
+        if (backupAvailability.available) {
+            // Update the option text to show info
+            localbackupOption.textContent = `Local Backup Copy (${backupAvailability.notebookCount} notebooks)`;
+            localbackupOption.disabled = false;
+            console.log("Local backup available:", backupAvailability.message);
+        } else {
+            // Disable the option and show why it's not available
+            localbackupOption.textContent = `Local Backup Copy - Not available (${backupAvailability.reason})`;
+            localbackupOption.disabled = true;
+            console.warn("Local backup not available:", backupAvailability.message);
+        }
+    } catch (err) {
+        console.error("Error checking local backup availability:", err);
+        localbackupOption.textContent = "Local Backup Copy - Error checking availability";
+        localbackupOption.disabled = true;
     }
 }
 
@@ -288,6 +320,56 @@ function setupCancelButton() {
     });
 }
 
+// Setup format change listener for smart UI behavior
+function setupFormatChangeListener() {
+    formatSelect.addEventListener('change', () => {
+        const isLocalBackup = formatSelect.value === 'localbackup';
+
+        if (isLocalBackup) {
+            // Show warning
+            backupWarning.style.display = 'block';
+
+            // Auto-check all notebooks and disable checkboxes
+            const checkboxes = document.querySelectorAll('.notebook-check');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                checkbox.disabled = true;
+                selectedNotebooks.add(checkbox.value);
+            });
+
+            // Gray out notebook list to indicate it's disabled
+            notebookListElement.style.opacity = '0.6';
+            notebookListElement.style.pointerEvents = 'none';
+
+            // Update button text
+            if (backupAvailability && backupAvailability.available) {
+                exportSelectedButton.textContent = `Export ALL Notebooks (${backupAvailability.notebookCount} total)`;
+            } else {
+                exportSelectedButton.textContent = 'Export ALL Notebooks';
+            }
+            exportSelectedButton.disabled = false;
+        } else {
+            // Hide warning
+            backupWarning.style.display = 'none';
+
+            // Re-enable checkboxes and clear selection
+            const checkboxes = document.querySelectorAll('.notebook-check');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.disabled = false;
+            });
+            selectedNotebooks.clear();
+
+            // Restore notebook list appearance
+            notebookListElement.style.opacity = '1';
+            notebookListElement.style.pointerEvents = 'auto';
+
+            // Reset button
+            updateExportButtonState();
+        }
+    });
+}
+
 // Export selected notebooks one by one
 async function exportNotebooks(notebookIds, destPath) {
     try {
@@ -301,6 +383,46 @@ async function exportNotebooks(notebookIds, destPath) {
         // Get selected format
         const format = formatSelect.value;
 
+        // Special handling for localbackup format
+        if (format === 'localbackup') {
+            // Double-check availability before export
+            if (!backupAvailability || !backupAvailability.available) {
+                statusElement.textContent = "❌ Local backup not available: " + (backupAvailability ? backupAvailability.message : "Unknown error");
+                statusElement.className = "status error";
+                exportInProgress = false;
+                cancelButton.style.display = "none";
+                disableButtons(false);
+                hideProgress();
+                return;
+            }
+
+            exportStatus.innerHTML = '<span class="spinner"></span>Copying local backup files...';
+
+            try {
+                const result = await ExportBackup(destPath);
+
+                hideProgress();
+
+                if (result.success) {
+                    statusElement.textContent = `✓ Local backup successfully copied!\n\nExported to: ${destPath}`;
+                    statusElement.className = "status success";
+                } else {
+                    statusElement.textContent = `❌ Export failed: ${result.message}`;
+                    statusElement.className = "status error";
+                }
+            } catch (err) {
+                hideProgress();
+                statusElement.textContent = `❌ Error during export: ${err.message}`;
+                statusElement.className = "status error";
+            }
+
+            exportInProgress = false;
+            cancelButton.style.display = "none";
+            disableButtons(false);
+            return;
+        }
+
+        // Regular COM-based export (onepkg, xps, pdf)
         let successCount = 0;
         let failCount = 0;
         const messages = [];
@@ -316,7 +438,8 @@ async function exportNotebooks(notebookIds, destPath) {
             console.log(`[DEBUG] Starting export of notebook ${i + 1}/${notebookIds.length}`);
 
             try {
-                const result = await ExportNotebook(notebookId, destPath, format);
+                // Use ExportNotebookNoExplorer to prevent opening Explorer for each notebook
+                const result = await ExportNotebookNoExplorer(notebookId, destPath, format);
 
                 if (result.success) {
                     successCount++;
@@ -345,6 +468,15 @@ async function exportNotebooks(notebookIds, destPath) {
         const finalMessage = `Export completed: ${successCount} successful, ${failCount} failed\n\n${messages.join('\n')}`;
         statusElement.textContent = finalMessage;
         statusElement.className = failCount === 0 ? "status success" : "status warning";
+
+        // Open Explorer once after all exports are complete (only if at least one was successful)
+        if (successCount > 0) {
+            try {
+                await OpenFolder(destPath);
+            } catch (err) {
+                console.error('Failed to open folder:', err);
+            }
+        }
 
         // Release the global lock and hide cancel button
         exportInProgress = false;

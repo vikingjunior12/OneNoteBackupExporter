@@ -6,11 +6,15 @@ export function BrowseFolder():Promise<string>;
 
 export function CancelExport():Promise<main.ExportResult>;
 
+export function CheckLocalBackupAvailable():Promise<main.BackupAvailability>;
+
 export function ExportAllNotebooks(arg1:string,arg2:string):Promise<main.ExportResult>;
 
 export function ExportBackup(arg1:string):Promise<main.ExportResult>;
 
 export function ExportNotebook(arg1:string,arg2:string,arg3:string):Promise<main.ExportResult>;
+
+export function ExportNotebookNoExplorer(arg1:string,arg2:string,arg3:string):Promise<main.ExportResult>;
 
 export function FormatSize(arg1:number):Promise<string>;
 
@@ -25,3 +29,5 @@ export function GetNotebooks():Promise<Array<main.NotebookInfo>>;
 export function GetOneNoteBackupPath():Promise<string>;
 
 export function GetOneNoteVersion():Promise<main.VersionInfo>;
+
+export function OpenFolder(arg1:string):Promise<void>;

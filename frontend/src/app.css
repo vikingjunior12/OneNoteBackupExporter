@@ -215,6 +215,18 @@
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
+/* Backup warning */
+.backup-warning {
+    margin-top: 5px;
+    padding: 10px 15px;
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+    border-radius: 5px;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
 /* Export buttons */
 .export-buttons {
     display: flex;

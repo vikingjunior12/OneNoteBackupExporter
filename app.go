@@ -250,7 +250,7 @@ func (a *App) copyFile(src, dst string) error {
 	return os.Chmod(dst, srcInfo.Mode())
 }
 
-// openFolder opens the specified folder in the file explorer
+// openFolder opens the specified folder in the file explorer (private helper)
 func (a *App) openFolder(path string) error {
 	var cmd *exec.Cmd
 
@@ -266,6 +266,11 @@ func (a *App) openFolder(path string) error {
 	}
 
 	return cmd.Start()
+}
+
+// OpenFolder opens the specified folder in the file explorer (exported for frontend use)
+func (a *App) OpenFolder(path string) error {
+	return a.openFolder(path)
 }
 
 // GetDefaultDownloadsPath returns the path to the user's Downloads folder
@@ -320,6 +325,87 @@ func (a *App) GetBackupSize() int64 {
 	return totalSize
 }
 
+// BackupAvailability represents the availability status of local OneNote backups
+type BackupAvailability struct {
+	Available     bool   `json:"available"`
+	Reason        string `json:"reason,omitempty"`
+	Message       string `json:"message"`
+	Path          string `json:"path,omitempty"`
+	NotebookCount int    `json:"notebookCount,omitempty"`
+	Size          string `json:"size,omitempty"`
+}
+
+// CheckLocalBackupAvailable checks if local OneNote backups are available and provides details
+func (a *App) CheckLocalBackupAvailable() *BackupAvailability {
+	backupPath := a.GetOneNoteBackupPath()
+
+	// Check if path could be determined
+	if backupPath == "" {
+		return &BackupAvailability{
+			Available: false,
+			Reason:    "path_error",
+			Message:   "Backup-Pfad konnte nicht ermittelt werden",
+		}
+	}
+
+	// Check if folder exists
+	info, err := os.Stat(backupPath)
+	if os.IsNotExist(err) {
+		return &BackupAvailability{
+			Available: false,
+			Reason:    "folder_not_found",
+			Message:   "Backup-Ordner nicht gefunden. OneNote hat möglicherweise noch keine Backups erstellt.",
+			Path:      backupPath,
+		}
+	}
+	if err != nil {
+		return &BackupAvailability{
+			Available: false,
+			Reason:    "access_error",
+			Message:   fmt.Sprintf("Fehler beim Zugriff auf Backup-Ordner: %v", err),
+			Path:      backupPath,
+		}
+	}
+
+	// Check if it's actually a directory
+	if !info.IsDir() {
+		return &BackupAvailability{
+			Available: false,
+			Reason:    "not_a_directory",
+			Message:   "Backup-Pfad ist kein Ordner",
+			Path:      backupPath,
+		}
+	}
+
+	// Check if folder is empty
+	items, err := os.ReadDir(backupPath)
+	if err != nil {
+		return &BackupAvailability{
+			Available: false,
+			Reason:    "read_error",
+			Message:   fmt.Sprintf("Fehler beim Lesen des Backup-Ordners: %v", err),
+			Path:      backupPath,
+		}
+	}
+
+	if len(items) == 0 {
+		return &BackupAvailability{
+			Available: false,
+			Reason:    "folder_empty",
+			Message:   "Backup-Ordner ist leer. Bitte öffne OneNote und warte bis Backups erstellt wurden.",
+			Path:      backupPath,
+		}
+	}
+
+	// All checks passed - don't calculate size to keep startup fast
+	return &BackupAvailability{
+		Available:     true,
+		Message:       fmt.Sprintf("Local Backup verfügbar (%d Notizbücher)", len(items)),
+		Path:          backupPath,
+		NotebookCount: len(items),
+	}
+}
+
 // FormatSize formats a size in bytes to a human-readable string (KB, MB, GB)
 func (a *App) FormatSize(size int64) string {
 	const (
@@ -372,8 +458,9 @@ func (a *App) GetNotebooks() ([]NotebookInfo, error) {
 	return notebooks, nil
 }
 
-// ExportNotebook exports a single notebook to the specified format (onepkg, xps, pdf)
-func (a *App) ExportNotebook(notebookID, destinationPath, format string) (*ExportResult, error) {
+// exportNotebookInternal is the internal implementation for exporting a single notebook
+// It does NOT open the Explorer - that's left to the calling method
+func (a *App) exportNotebookInternal(notebookID, destinationPath, format string) (*ExportResult, error) {
 	if a.helper == nil {
 		return &ExportResult{
 			Success: false,
@@ -389,12 +476,26 @@ func (a *App) ExportNotebook(notebookID, destinationPath, format string) (*Expor
 		}, err
 	}
 
+	return result, nil
+}
+
+// ExportNotebook exports a single notebook to the specified format (onepkg, xps, pdf)
+// Opens Explorer after successful export
+func (a *App) ExportNotebook(notebookID, destinationPath, format string) (*ExportResult, error) {
+	result, err := a.exportNotebookInternal(notebookID, destinationPath, format)
+
 	// Open the folder in explorer if successful
-	if result.Success {
+	if err == nil && result != nil && result.Success {
 		a.openFolder(destinationPath)
 	}
 
-	return result, nil
+	return result, err
+}
+
+// ExportNotebookNoExplorer exports a single notebook to the specified format (onepkg, xps, pdf)
+// Does NOT open Explorer - useful for batch operations where Explorer should open only once at the end
+func (a *App) ExportNotebookNoExplorer(notebookID, destinationPath, format string) (*ExportResult, error) {
+	return a.exportNotebookInternal(notebookID, destinationPath, format)
 }
 
 // ExportAllNotebooks exports all notebooks to the specified destination

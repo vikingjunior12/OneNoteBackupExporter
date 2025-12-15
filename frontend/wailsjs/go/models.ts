@@ -1,5 +1,27 @@
 export namespace main {
 	
+	export class BackupAvailability {
+	    available: boolean;
+	    reason?: string;
+	    message: string;
+	    path?: string;
+	    notebookCount?: number;
+	    size?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupAvailability(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.reason = source["reason"];
+	        this.message = source["message"];
+	        this.path = source["path"];
+	        this.notebookCount = source["notebookCount"];
+	        this.size = source["size"];
+	    }
+	}
 	export class ExportResult {
 	    success: boolean;
 	    message: string;
