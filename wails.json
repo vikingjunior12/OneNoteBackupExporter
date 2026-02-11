@@ -18,8 +18,8 @@
   },
   "width": 1280,
   "height": 1100,
-  "minWidth": 1000,
-  "minHeight": 900,
+  "minWidth": 700,
+  "minHeight": 500,
   "resizable": true,
   "defaultTheme": "system"
 }
