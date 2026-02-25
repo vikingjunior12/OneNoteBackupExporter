@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "FxML4RFgt9A=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\JLi1\\Nextcloud\\C#_pwsh\\OneNoteExporterC#\\OneNoteExporter.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\JLi1\\.nuget\\packages\\interop.microsoft.office.interop.onenote\\1.1.0.2\\interop.microsoft.office.interop.onenote.1.1.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}

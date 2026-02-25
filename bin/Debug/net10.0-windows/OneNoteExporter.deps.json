@@ -1,0 +1,41 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "OneNoteExporter/1.0.0": {
+        "dependencies": {
+          "Interop.Microsoft.Office.Interop.OneNote": "1.1.0.2"
+        },
+        "runtime": {
+          "OneNoteExporter.dll": {}
+        }
+      },
+      "Interop.Microsoft.Office.Interop.OneNote/1.1.0.2": {
+        "runtime": {
+          "lib/netstandard2.0/Interop.Microsoft.Office.Interop.OneNote.dll": {
+            "assemblyVersion": "1.1.0.0",
+            "fileVersion": "1.1.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "OneNoteExporter/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Interop.Microsoft.Office.Interop.OneNote/1.1.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ut8pftjybCXTuwIAflYH1tm8yoH7mouIHvuFLqp6gLilIWN6KX534XuU9kNNtDD8trLmEBkKw5wIYqdY7tdxNA==",
+      "path": "interop.microsoft.office.interop.onenote/1.1.0.2",
+      "hashPath": "interop.microsoft.office.interop.onenote.1.1.0.2.nupkg.sha512"
+    }
+  }
+}
