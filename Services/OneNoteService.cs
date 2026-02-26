@@ -141,8 +141,15 @@ public class OneNoteService : IDisposable
             // Open notebook (required for cloud notebooks)
             _oneNote.OpenHierarchy(notebookPath, "", out string openedId, CreateFileType.cftNone);
 
+            // Remove existing file so WaitForFile doesn't detect the old file as done
+            if (File.Exists(fullPath))
+            {
+                progress?.Report("Removing previous export file...");
+                File.Delete(fullPath);
+            }
+
             // Trigger the export (Publish returns immediately; OneNote writes async)
-            progress?.Report($"OneNote is writing in the background...");
+            progress?.Report("OneNote is writing in the background...");
             _oneNote.Publish(openedId, fullPath, publishFormat, "");
 
             // Wait for the file to appear and stabilise

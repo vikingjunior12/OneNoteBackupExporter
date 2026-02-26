@@ -7,7 +7,7 @@
   "targets": {
     ".NETCoreApp,Version=v10.0": {},
     ".NETCoreApp,Version=v10.0/win-x64": {
-      "OneNoteExporter/1.0.0": {
+      "OneNoteExporter/1.0.1": {
         "dependencies": {
           "Interop.Microsoft.Office.Interop.OneNote": "1.1.0.2",
           "runtimepack.Microsoft.NETCore.App.Runtime.win-x64": "10.0.3",
@@ -976,7 +976,7 @@
     }
   },
   "libraries": {
-    "OneNoteExporter/1.0.0": {
+    "OneNoteExporter/1.0.1": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

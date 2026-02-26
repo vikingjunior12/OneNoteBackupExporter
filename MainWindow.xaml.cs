@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Win32;
@@ -391,19 +392,25 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Auto-dismiss the OneNote sync-warning dialog ("Ja" / "Nein") if it appears
+        StartDialogWatcher(ct);
+
         int successCount = 0, failCount = 0;
         var messages = new List<string>();
-
-        // Progress handler runs on the UI thread (Progress<T> marshals back automatically)
-        var progress = new Progress<string>(msg => UpdateProgressText(msg));
 
         for (int i = 0; i < selected.Count; i++)
         {
             if (ct.IsCancellationRequested) break;
 
-            var nb = selected[i];
-            ShowProgress($"Exporting notebook {i + 1}/{selected.Count}: {nb.Name}\n" +
-                         "OneNote is writing in the background, this may take several minutes...");
+            var nb       = selected[i];
+            var nbIndex  = i + 1;
+            var nbTotal  = selected.Count;
+
+            // Progress prefixes every service message with notebook counter
+            var progress = new Progress<string>(msg =>
+                UpdateProgressText($"Notebook {nbIndex}/{nbTotal}: {nb.Name}\n{msg}\nPlease be patient, this may take several minutes..."));
+
+            ShowProgress($"Notebook {nbIndex}/{nbTotal}: {nb.Name}\nStarting export...\nPlease be patient, this may take several minutes...");
 
             try
             {
@@ -449,6 +456,44 @@ public partial class MainWindow : Window
     }
 
     // ── Utilities ────────────────────────────────────────────────────────────
+
+    private static void StartDialogWatcher(CancellationToken ct)
+    {
+        _ = Task.Run(() =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    var allWindows = AutomationElement.RootElement.FindAll(
+                        TreeScope.Children,
+                        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window));
+
+                    foreach (AutomationElement window in allWindows)
+                    {
+                        if (!window.Current.Name.Contains("OneNote", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        var jaButton = window.FindFirst(
+                            TreeScope.Descendants,
+                            new AndCondition(
+                                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                                new PropertyCondition(AutomationElement.NameProperty, "Ja")));
+
+                        if (jaButton != null &&
+                            jaButton.TryGetCurrentPattern(InvokePattern.Pattern, out var pattern))
+                        {
+                            ((InvokePattern)pattern).Invoke();
+                            Debug.WriteLine("OneNote sync-warning dialog auto-dismissed.");
+                        }
+                    }
+                }
+                catch { /* dialog may have closed between find and invoke */ }
+
+                ct.WaitHandle.WaitOne(300);
+            }
+        });
+    }
 
     private static void KillProcess(string processName)
     {

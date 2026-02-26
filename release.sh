@@ -1,9 +1,9 @@
-# release.sh – GitHub Release v1.0.0 erstellen und Setup-EXE hochladen
+# release.sh – GitHub Release erstellen und Setup-EXE hochladen
 # Voraussetzungen: git, gh (GitHub CLI), authentifiziert via `gh auth login`
 
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 TAG="v${VERSION}"
 SETUP_EXE="OneNoteBackupExporter_Setup_${VERSION}.exe"
 REPO="vikingjunior12/OneNoteBackupExporter"
@@ -37,26 +37,20 @@ gh release create "$TAG" "$SETUP_EXE" \
   --title "OneNoteBackupExporter $TAG" \
   --notes "## OneNoteBackupExporter $TAG
 
-### Vollständige Neuentwicklung als C#/WPF-Anwendung
+### Bug Fixes
 
-Diese Version ist eine komplette Neuentwicklung in **reinem C# (WPF)**.
-Die frühere Go/Wails-Architektur wurde vollständig ersetzt für bessere Performance, einfachere Installation und direkte COM-Integration ohne Subprocess-Layer.
-
-### Highlights
-- Direkter Zugriff auf OneNote via COM API (kein Subprocess mehr)
-- Export zu **.onepkg**, **.xps**, **.pdf** und lokalem Backup
-- Fortschrittsanzeige mit Abbruch-Funktion
-- Self-contained – kein .NET vorinstallieren nötig
-- Nur für **Windows x64** (OneNote Desktop erforderlich)
+- Fixed re-export failing when output files from a previous export already existed in the destination folder
+- Export progress now shows notebook counter (e.g. Notebook 2/7) throughout the entire export, including during the file write wait phase
+- OneNote sync-warning dialog (\"Trotzdem fortfahren?\") is now automatically confirmed during export — no manual interaction required
 
 ### Installation
-1. \`$SETUP_EXE\` herunterladen
-2. Setup ausführen
-3. OneNote Desktop muss installiert und mindestens einmal geöffnet worden sein
+1. Download \`$SETUP_EXE\`
+2. Run the installer
+3. OneNote Desktop must be installed and opened at least once
 
-### Systemvoraussetzungen
+### System Requirements
 - Windows 10/11 x64
-- Microsoft OneNote Desktop (Microsoft 365 oder 2019/2021)"
+- Microsoft OneNote Desktop (Microsoft 365 or 2019/2021)"
 
 echo ""
 echo "Release erfolgreich: https://github.com/${REPO}/releases/tag/${TAG}"
