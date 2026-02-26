@@ -1,0 +1,23 @@
+# Build-Ausgaben
+bin/
+obj/
+build/
+
+# Setup-EXE (wird als GitHub Release Asset hochgeladen)
+*.exe
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET
+*.nupkg
+*.snupkg
+project.lock.json
+
+# Logs
+*.log

@@ -14,9 +14,11 @@ if [[ -z "$MSG" ]]; then
   exit 1
 fi
 
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
 git add .
 git commit -m "$MSG"
-git push origin master
+git push origin "$BRANCH"
 
 echo ""
-echo "Gepusht: $(git rev-parse --short HEAD) – $MSG"
+echo "Gepusht: $(git rev-parse --short HEAD) auf $BRANCH – $MSG"
