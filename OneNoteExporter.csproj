@@ -7,8 +7,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <!-- CRITICAL: x86 required for COM compatibility with 32-bit OneNote installations -->
-    <PlatformTarget>x86</PlatformTarget>
+    <!-- x64: OneNote Desktop is installed as 64-bit -->
+    <PlatformTarget>x64</PlatformTarget>
 
     <AssemblyName>OneNoteExporter</AssemblyName>
     <RootNamespace>OneNoteExporter</RootNamespace>

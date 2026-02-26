@@ -11,6 +11,17 @@
           "lib/netstandard2.0/Interop.Microsoft.Office.Interop.OneNote.dll": {}
         }
       }
+    },
+    "net10.0-windows7.0/win-x64": {
+      "Interop.Microsoft.Office.Interop.OneNote/1.1.0.2": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/Interop.Microsoft.Office.Interop.OneNote.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/Interop.Microsoft.Office.Interop.OneNote.dll": {}
+        }
+      }
     }
   },
   "libraries": {
@@ -94,6 +105,20 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+            "version": "[10.0.3, 10.0.3]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Runtime.win-x64",
+            "version": "[10.0.3, 10.0.3]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+            "version": "[10.0.3, 10.0.3]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
@@ -393,6 +418,11 @@
           "System.Xml.XPath": "(,4.3.32767]",
           "System.Xml.XPath.XDocument": "(,5.0.32767]"
         }
+      }
+    },
+    "runtimes": {
+      "win-x64": {
+        "#import": []
       }
     }
   }
