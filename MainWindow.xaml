@@ -119,22 +119,97 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                      IsEnabled="{Binding IsEnabled}"
-                                                      Checked="Notebook_SelectionChanged"
-                                                      Unchecked="Notebook_SelectionChanged"
-                                                      Cursor="Hand">
-                                                <StackPanel Margin="4,0,0,0">
-                                                    <TextBlock Text="{Binding DisplayName}"
-                                                               FontWeight="SemiBold"
-                                                               FontSize="13"
-                                                               Foreground="{StaticResource TextPrimary}"/>
-                                                    <TextBlock Text="{Binding LastModifiedFormatted}"
-                                                               FontSize="11"
-                                                               Foreground="{StaticResource TextSecondary}"
-                                                               Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </CheckBox>
+
+                                            <StackPanel>
+                                                <!-- ── Notebook row: checkbox + expand button ── -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <CheckBox Grid.Column="0"
+                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                              IsEnabled="{Binding IsEnabled}"
+                                                              Checked="Notebook_SelectionChanged"
+                                                              Unchecked="Notebook_SelectionChanged"
+                                                              Cursor="Hand">
+                                                        <StackPanel Margin="4,0,0,0">
+                                                            <TextBlock Text="{Binding DisplayName}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="13"
+                                                                       Foreground="{StaticResource TextPrimary}"/>
+                                                            <TextBlock Text="{Binding LastModifiedFormatted}"
+                                                                       FontSize="11"
+                                                                       Foreground="{StaticResource TextSecondary}"
+                                                                       Margin="0,2,0,0"/>
+                                                        </StackPanel>
+                                                    </CheckBox>
+
+                                                    <!-- Expand / collapse sections toggle -->
+                                                    <Button Grid.Column="1"
+                                                            Click="ExpandSections_Click"
+                                                            Margin="8,0,0,0"
+                                                            VerticalAlignment="Center">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource ExpandButtonStyle}">
+                                                                <Setter Property="Content" Value="▶  Sections"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                        <Setter Property="Content" Value="▼  Sections"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
+                                                </Grid>
+
+                                                <!-- ── Sections panel (visible when expanded) ── -->
+                                                <Border Margin="28,6,0,2"
+                                                        BorderBrush="{StaticResource BorderColor}"
+                                                        BorderThickness="0,0,0,0"
+                                                        Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
+                                                    <StackPanel>
+
+                                                        <!-- Loading indicator -->
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    Margin="0,0,0,4"
+                                                                    Visibility="{Binding IsLoadingSections, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="⏳  Loading sections..."
+                                                                       FontSize="12"
+                                                                       FontStyle="Italic"
+                                                                       Foreground="{StaticResource TextSecondary}"/>
+                                                        </StackPanel>
+
+                                                        <!-- Section list -->
+                                                        <ItemsControl ItemsSource="{Binding Sections}"
+                                                                      Visibility="{Binding IsSectionsContentVisible, Converter={StaticResource BoolToVis}}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                              Checked="Section_SelectionChanged"
+                                                                              Unchecked="Section_SelectionChanged"
+                                                                              Cursor="Hand"
+                                                                              Margin="0,3,0,3">
+                                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                                   FontSize="12"
+                                                                                   Foreground="{StaticResource TextPrimary}"/>
+                                                                    </CheckBox>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+
+                                                        <!-- No sections found -->
+                                                        <TextBlock Text="No exportable sections found."
+                                                                   FontSize="12"
+                                                                   FontStyle="Italic"
+                                                                   Foreground="{StaticResource TextSecondary}"
+                                                                   Margin="0,2,0,0"
+                                                                   Visibility="{Binding SectionsEmpty, Converter={StaticResource BoolToVis}}"/>
+
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

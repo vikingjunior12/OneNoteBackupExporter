@@ -234,7 +234,6 @@ C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\wi
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\hostfxr.dll
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\hostpolicy.dll
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\mscordaccore.dll
-C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\mscordaccore_amd64_amd64_10.0.326.7603.dll
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\mscordbi.dll
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\mscorrc.dll
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\msquic.dll
@@ -417,3 +416,4 @@ C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Release\net10.0-windows\wi
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Release\net10.0-windows\win-x64\OneNoteExporter.pdb
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Release\net10.0-windows\win-x64\OneNoteExporter.genruntimeconfig.cache
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Release\net10.0-windows\win-x64\ref\OneNoteExporter.dll
+C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\bin\Release\net10.0-windows\win-x64\mscordaccore_amd64_amd64_10.0.526.15411.dll

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -10,6 +11,17 @@ public class NotebookInfo
     public string Path         { get; set; } = "";
     public string LastModified { get; set; } = "";
     public bool IsCurrentlyViewed { get; set; }
+}
+
+public class SectionInfo
+{
+    public string Id           { get; set; } = "";
+    public string Name         { get; set; } = "";
+    public string NotebookId   { get; set; } = "";
+    public string NotebookName { get; set; } = "";
+    public string NotebookPath { get; set; } = "";
+    public string GroupName    { get; set; } = ""; // empty when section is directly in notebook
+    public bool   IsCloud      { get; set; }
 }
 
 public class ExportResult
@@ -36,14 +48,50 @@ public class BackupAvailability
 }
 
 /// <summary>
-/// Wraps NotebookInfo for the WPF notebook list with selection state.
+/// Wraps SectionInfo for the WPF section list with selection state.
+/// </summary>
+public class SectionViewModel : INotifyPropertyChanged
+{
+    private bool _isSelected;
+
+    public SectionInfo Info { get; }
+    public string Id   => Info.Id;
+    public string Name => Info.Name;
+
+    public string DisplayName => string.IsNullOrEmpty(Info.GroupName)
+        ? $"📄 {Info.Name}"
+        : $"📂 {Info.GroupName}  /  📄 {Info.Name}";
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set { _isSelected = value; OnPropertyChanged(); }
+    }
+
+    public SectionViewModel(SectionInfo info) => Info = info;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+/// <summary>
+/// Wraps NotebookInfo for the WPF notebook list with selection and section-expand state.
 /// </summary>
 public class NotebookViewModel : INotifyPropertyChanged
 {
     private bool _isSelected;
     private bool _isEnabled = true;
+    private bool _isExpanded;
+    private bool _isLoadingSections;
 
     public NotebookInfo Info { get; }
+
+    /// <summary>Sections loaded lazily when the user first expands this notebook.</summary>
+    public ObservableCollection<SectionViewModel> Sections { get; } = new();
+
+    /// <summary>True once GetSections() has been called for this notebook.</summary>
+    public bool HasSectionsLoaded { get; set; } = false;
 
     public string Id   => Info.Id;
     public string Name => Info.Name;
@@ -76,9 +124,39 @@ public class NotebookViewModel : INotifyPropertyChanged
         set { _isEnabled = value; OnPropertyChanged(); }
     }
 
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            _isExpanded = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSectionsContentVisible));
+            OnPropertyChanged(nameof(SectionsEmpty));
+        }
+    }
+
+    public bool IsLoadingSections
+    {
+        get => _isLoadingSections;
+        set
+        {
+            _isLoadingSections = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSectionsContentVisible));
+            OnPropertyChanged(nameof(SectionsEmpty));
+        }
+    }
+
+    /// <summary>True when sections panel should show the list (expanded + loaded + not loading).</summary>
+    public bool IsSectionsContentVisible => IsExpanded && HasSectionsLoaded && !IsLoadingSections;
+
+    /// <summary>True when expanded and loaded but no sections found.</summary>
+    public bool SectionsEmpty => IsExpanded && HasSectionsLoaded && !IsLoadingSections && Sections.Count == 0;
+
     public NotebookViewModel(NotebookInfo info) => Info = info;
 
     public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+    public void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -113,17 +113,23 @@ public partial class MainWindow : Window
 
     private void UpdateExportButtonState()
     {
-        bool isLocalBackup = GetSelectedFormat() == "localbackup";
+        if (GetSelectedFormat() == "localbackup") return; // handled by ApplyLocalBackupMode
 
-        if (isLocalBackup)
+        // Notebooks selected for whole-notebook export
+        // (a notebook that has any section selected is handled at section level instead)
+        int notebookCount = _notebooks.Count(nb => nb.IsSelected && !nb.Sections.Any(s => s.IsSelected));
+        int sectionCount  = _notebooks.Sum(nb => nb.Sections.Count(s => s.IsSelected));
+
+        bool hasAny = notebookCount > 0 || sectionCount > 0;
+        ExportButton.IsEnabled = hasAny;
+
+        ExportButton.Content = (notebookCount, sectionCount) switch
         {
-            // Already handled in ApplyLocalBackupMode
-            return;
-        }
-
-        int count = _notebooks.Count(n => n.IsSelected);
-        ExportButton.IsEnabled = count > 0;
-        ExportButton.Content   = count > 0 ? $"Export {count} notebook(s)" : "Export Selected";
+            (0, 0)   => "Export Selected",
+            (> 0, 0) => $"Export {notebookCount} notebook(s)",
+            (0, > 0) => $"Export {sectionCount} section(s)",
+            _        => $"Export {notebookCount} notebook(s)  +  {sectionCount} section(s)"
+        };
     }
 
     private void UpdateLocalBackupOption()
@@ -152,6 +158,8 @@ public partial class MainWindow : Window
             {
                 nb.IsSelected = true;
                 nb.IsEnabled  = false;
+                nb.IsExpanded = false;
+                foreach (var s in nb.Sections) s.IsSelected = false;
             }
 
             var avail = FileHelper.CheckLocalBackupAvailable();
@@ -284,6 +292,45 @@ public partial class MainWindow : Window
     private void Notebook_SelectionChanged(object sender, RoutedEventArgs e)
         => UpdateExportButtonState();
 
+    private void Section_SelectionChanged(object sender, RoutedEventArgs e)
+        => UpdateExportButtonState();
+
+    private async void ExpandSections_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.DataContext is not NotebookViewModel nb) return;
+
+        nb.IsExpanded = !nb.IsExpanded;
+
+        if (nb.IsExpanded && !nb.HasSectionsLoaded)
+            await LoadSectionsAsync(nb);
+    }
+
+    private async Task LoadSectionsAsync(NotebookViewModel nb)
+    {
+        if (_service == null) return;
+
+        nb.IsLoadingSections = true;
+
+        try
+        {
+            var sections = await Task.Run(() => _service.GetSections(nb.Id));
+
+            nb.Sections.Clear();
+            foreach (var s in sections)
+                nb.Sections.Add(new SectionViewModel(s));
+
+            nb.HasSectionsLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Could not load sections for '{nb.Name}': {ex.Message}", StatusKind.Error);
+        }
+        finally
+        {
+            nb.IsLoadingSections = false; // fires SectionsEmpty + IsSectionsContentVisible
+        }
+    }
+
     private async void ExportButton_Click(object sender, RoutedEventArgs e)
     {
         if (_exportInProgress)
@@ -299,28 +346,46 @@ public partial class MainWindow : Window
             return;
         }
 
-        var selected = _notebooks.Where(n => n.IsSelected).ToList();
-        if (selected.Count == 0)
+        var format = GetSelectedFormat();
+
+        // For COM export: build separate job lists for notebooks and sections.
+        // Rule: if a notebook has any selected sections, export those sections individually
+        //       (the notebook-level checkbox is ignored for that notebook).
+        List<NotebookViewModel>? notebookJobs = null;
+        List<(NotebookViewModel Notebook, SectionViewModel Section)>? sectionJobs = null;
+
+        if (format != "localbackup")
         {
-            ShowStatus("Please select at least one notebook.", StatusKind.Error);
-            return;
+            notebookJobs = _notebooks
+                .Where(nb => nb.IsSelected && !nb.Sections.Any(s => s.IsSelected))
+                .ToList();
+
+            sectionJobs = _notebooks
+                .SelectMany(nb => nb.Sections
+                    .Where(s => s.IsSelected)
+                    .Select(s => (Notebook: nb, Section: s)))
+                .ToList();
+
+            if (notebookJobs.Count == 0 && sectionJobs.Count == 0)
+            {
+                ShowStatus("Please select at least one notebook or section.", StatusKind.Error);
+                return;
+            }
         }
 
         // Lock UI
-        _exportInProgress  = true;
-        _exportCts         = new CancellationTokenSource();
+        _exportInProgress       = true;
+        _exportCts              = new CancellationTokenSource();
         CancelButton.Visibility = Visibility.Visible;
         SetButtonsEnabled(false);
         ClearStatus();
-
-        var format = GetSelectedFormat();
 
         try
         {
             if (format == "localbackup")
                 await RunLocalBackupAsync(destPath);
             else
-                await RunComExportAsync(selected, destPath, format, _exportCts.Token);
+                await RunComExportAsync(notebookJobs!, sectionJobs!, destPath, format, _exportCts.Token);
         }
         finally
         {
@@ -381,7 +446,8 @@ public partial class MainWindow : Window
     }
 
     private async Task RunComExportAsync(
-        List<NotebookViewModel> selected,
+        List<NotebookViewModel> notebookJobs,
+        List<(NotebookViewModel Notebook, SectionViewModel Section)> sectionJobs,
         string destPath,
         string format,
         CancellationToken ct)
@@ -396,38 +462,29 @@ public partial class MainWindow : Window
         StartDialogWatcher(ct);
 
         int successCount = 0, failCount = 0;
-        var messages = new List<string>();
+        var messages     = new List<string>();
+        int totalJobs    = notebookJobs.Count + sectionJobs.Count;
+        int jobIndex     = 0;
 
-        for (int i = 0; i < selected.Count; i++)
+        // ── Notebook-level exports ────────────────────────────────────────────
+        foreach (var nb in notebookJobs)
         {
             if (ct.IsCancellationRequested) break;
+            jobIndex++;
 
-            var nb       = selected[i];
-            var nbIndex  = i + 1;
-            var nbTotal  = selected.Count;
-
-            // Progress prefixes every service message with notebook counter
+            var label    = $"Notebook {jobIndex}/{totalJobs}: {nb.Name}";
             var progress = new Progress<string>(msg =>
-                UpdateProgressText($"Notebook {nbIndex}/{nbTotal}: {nb.Name}\n{msg}\nPlease be patient, this may take several minutes..."));
+                UpdateProgressText($"{label}\n{msg}\nPlease be patient, this may take several minutes..."));
 
-            ShowProgress($"Notebook {nbIndex}/{nbTotal}: {nb.Name}\nStarting export...\nPlease be patient, this may take several minutes...");
+            ShowProgress($"{label}\nStarting export...\nPlease be patient, this may take several minutes...");
 
             try
             {
                 var result = await Task.Run(
-                    () => _service.ExportNotebook(nb.Id, destPath, format, progress, ct),
-                    ct);
+                    () => _service.ExportNotebook(nb.Id, destPath, format, progress, ct), ct);
 
-                if (result.Success)
-                {
-                    successCount++;
-                    messages.Add($"✓ {nb.Name}");
-                }
-                else
-                {
-                    failCount++;
-                    messages.Add($"✗ {nb.Name}: {result.Message}");
-                }
+                if (result.Success) { successCount++; messages.Add($"✓ {nb.Name}"); }
+                else                { failCount++;    messages.Add($"✗ {nb.Name}: {result.Message}"); }
             }
             catch (OperationCanceledException)
             {
@@ -441,8 +498,42 @@ public partial class MainWindow : Window
                 messages.Add($"✗ {nb.Name}: {ex.Message}");
             }
 
-            UpdateProgressText($"✓ Completed: {i + 1}/{selected.Count} notebooks");
-            await Task.Delay(400, CancellationToken.None); // Brief visual pause
+            await Task.Delay(300, CancellationToken.None);
+        }
+
+        // ── Section-level exports ─────────────────────────────────────────────
+        foreach (var (nb, sec) in sectionJobs)
+        {
+            if (ct.IsCancellationRequested) break;
+            jobIndex++;
+
+            var label    = $"Section {jobIndex}/{totalJobs}: {sec.Name}  ({nb.Name})";
+            var progress = new Progress<string>(msg =>
+                UpdateProgressText($"{label}\n{msg}\nPlease be patient, this may take several minutes..."));
+
+            ShowProgress($"{label}\nStarting export...\nPlease be patient, this may take several minutes...");
+
+            try
+            {
+                var result = await Task.Run(
+                    () => _service.ExportSection(sec.Info, destPath, format, progress, ct), ct);
+
+                if (result.Success) { successCount++; messages.Add($"✓ {nb.Name}  /  {sec.Name}"); }
+                else                { failCount++;    messages.Add($"✗ {nb.Name}  /  {sec.Name}: {result.Message}"); }
+            }
+            catch (OperationCanceledException)
+            {
+                HideProgress();
+                ShowStatus("Export cancelled.", StatusKind.Warning);
+                return;
+            }
+            catch (Exception ex)
+            {
+                failCount++;
+                messages.Add($"✗ {nb.Name}  /  {sec.Name}: {ex.Message}");
+            }
+
+            await Task.Delay(300, CancellationToken.None);
         }
 
         HideProgress();

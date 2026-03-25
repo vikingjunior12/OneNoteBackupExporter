@@ -35,7 +35,45 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ">> Kopiere Dateien nach: $BuildDir" -ForegroundColor Cyan
 Copy-Item -Path "$PublishDir\*" -Destination $BuildDir -Recurse -Force
 
-# ── 4. Fertig ─────────────────────────────────────────────────────────────────
+# ── 4. Inno Setup – Installer bauen ──────────────────────────────────────────
+Write-Host ">> Suche Inno Setup Compiler (ISCC.exe)..." -ForegroundColor Cyan
+
+$IssFile  = Join-Path $ProjectRoot 'innosetup.iss'
+$IsssPaths = @(
+    'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+    'C:\Program Files\Inno Setup 6\ISCC.exe',
+    'C:\Program Files (x86)\Inno Setup 5\ISCC.exe',
+    'C:\Program Files\Inno Setup 5\ISCC.exe'
+)
+
+$Iscc = $IsssPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+if (-not $Iscc) {
+    Write-Host "WARNUNG: ISCC.exe nicht gefunden – Installer wird übersprungen." -ForegroundColor Yellow
+    Write-Host "  -> Inno Setup installieren: https://jrsoftware.org/isdl.php" -ForegroundColor Yellow
+}
+elseif (-not (Test-Path $IssFile)) {
+    Write-Host "WARNUNG: innosetup.iss nicht gefunden – Installer wird übersprungen." -ForegroundColor Yellow
+}
+else {
+    Write-Host ">> Starte Inno Setup: $Iscc" -ForegroundColor Cyan
+    & $Iscc $IssFile
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "FEHLER: Inno Setup fehlgeschlagen (Exit-Code $LASTEXITCODE)." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
+
+    # Setup-EXE ausgeben
+    $SetupExe = Get-ChildItem -Path $ProjectRoot -Filter 'OneNoteBackupExporter_Setup_*.exe' |
+                Sort-Object LastWriteTime -Descending |
+                Select-Object -First 1
+    if ($SetupExe) {
+        $size = [math]::Round($SetupExe.Length / 1MB, 1)
+        Write-Host "  $($SetupExe.Name)  ($size MB)" -ForegroundColor Green
+    }
+}
+
+# ── 5. Fertig ─────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "Fertig! Build liegt in: $BuildDir" -ForegroundColor Green
 $exe = Join-Path $BuildDir 'OneNoteExporter.exe'

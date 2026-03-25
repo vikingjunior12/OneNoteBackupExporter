@@ -251,6 +251,132 @@ public class OneNoteService : IDisposable
         return result;
     }
 
+    /// <summary>
+    /// Returns all exportable sections in a notebook (including those inside section groups).
+    /// Skips encrypted and recycle-bin entries. Call via Task.Run from the UI layer.
+    /// </summary>
+    public List<SectionInfo> GetSections(string notebookId)
+    {
+        if (_oneNote == null)
+            throw new InvalidOperationException("OneNote is not initialized.");
+
+        var sections = new List<SectionInfo>();
+
+        // Notebook metadata (name, path, cloud flag)
+        _oneNote.GetHierarchy(notebookId, HierarchyScope.hsSelf, out string nbXml);
+        var nbDoc  = XDocument.Parse(nbXml);
+        var nbName = nbDoc.Root?.Attribute("name")?.Value ?? "Notebook";
+        var nbPath = nbDoc.Root?.Attribute("path")?.Value ?? "";
+        bool isCloud = nbPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                       nbPath.StartsWith("http://",  StringComparison.OrdinalIgnoreCase);
+
+        // Full section hierarchy
+        _oneNote.GetHierarchy(notebookId, HierarchyScope.hsSections, out string xml);
+        var xdoc = XDocument.Parse(xml);
+        var ns   = xdoc.Root?.Name.Namespace;
+        if (ns == null) return sections;
+
+        CollectSections(xdoc.Root!, ns, notebookId, nbName, nbPath, isCloud, "", sections);
+        return sections;
+    }
+
+    /// <summary>
+    /// Exports a single section. Blocks the calling thread until finished.
+    /// Sections are written into a notebook-named subfolder to avoid filename collisions.
+    /// Call via Task.Run from the UI layer.
+    /// </summary>
+    public ExportResult ExportSection(
+        SectionInfo section,
+        string destinationPath,
+        string exportFormat = "onepkg",
+        IProgress<string>? progress = null,
+        CancellationToken ct = default)
+    {
+        if (_oneNote == null)
+            throw new InvalidOperationException("OneNote is not initialized.");
+
+        TryCloseOneNoteGracefully(progress);
+
+        var result = new ExportResult();
+
+        try
+        {
+            progress?.Report($"Exporting section: {section.Name} (format: {exportFormat})");
+
+            string fileExtension = exportFormat.ToLowerInvariant() switch
+            {
+                "xps" => ".xps",
+                "pdf" => ".pdf",
+                _     => ".onepkg"
+            };
+
+            PublishFormat publishFormat = exportFormat.ToLowerInvariant() switch
+            {
+                "xps" => PublishFormat.pfXPS,
+                "pdf" => PublishFormat.pfPDF,
+                _     => PublishFormat.pfOneNotePackage
+            };
+
+            // Sections go into a notebook-named subfolder to prevent filename clashes
+            var sanitizedNb  = string.Join("_", section.NotebookName.Split(Path.GetInvalidFileNameChars()));
+            var sanitizedSec = string.Join("_", section.Name.Split(Path.GetInvalidFileNameChars()));
+            var notebookDir  = Path.Combine(destinationPath, sanitizedNb);
+            var fullPath     = Path.Combine(notebookDir, sanitizedSec + fileExtension);
+
+            Directory.CreateDirectory(notebookDir);
+
+            // Open the parent notebook (required before Publish on a section within it)
+            progress?.Report("Opening parent notebook...");
+            _oneNote.OpenHierarchy(section.NotebookPath, "", out _, CreateFileType.cftNone);
+
+            if (File.Exists(fullPath))
+            {
+                progress?.Report("Removing previous export file...");
+                File.Delete(fullPath);
+            }
+
+            progress?.Report("OneNote is writing in the background...");
+            _oneNote.Publish(section.Id, fullPath, publishFormat, "");
+
+            result = WaitForFile(fullPath, section.IsCloud, progress, ct);
+
+            if (result.Success)
+                result.ExportedPath = fullPath;
+        }
+        catch (OperationCanceledException)
+        {
+            result.Success = false;
+            result.Message = "Export cancelled.";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            result.Success = false;
+            result.Message = $"Access denied: {ex.Message}";
+        }
+        catch (COMException ex) when (ex.HResult == unchecked((int)0x8004201A))
+        {
+            result.Success = false;
+            result.Message = "Cannot export section (0x8004201A). It may be password-protected or offline.";
+        }
+        catch (COMException ex) when (ex.HResult == unchecked((int)0x800706BA))
+        {
+            result.Success = false;
+            result.Message = "RPC timeout (0x800706BA). Try .onepkg format.";
+        }
+        catch (COMException ex)
+        {
+            result.Success = false;
+            result.Message = $"COM error 0x{ex.HResult:X}: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Message = $"Error: {ex.Message}";
+        }
+
+        return result;
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     /// <summary>
@@ -335,6 +461,44 @@ public class OneNoteService : IDisposable
             Message = $"Timeout after {timeoutMin} min. OneNote may still be writing in the background. " +
                       $"Check {Path.GetDirectoryName(fullPath)} again in a few minutes."
         };
+    }
+
+    /// <summary>
+    /// Recursively walks a hierarchy XML element, collecting Section entries
+    /// and descending into SectionGroups. Skips encrypted sections and the recycle bin.
+    /// </summary>
+    private static void CollectSections(
+        XElement parent, XNamespace ns,
+        string notebookId, string notebookName, string notebookPath, bool isCloud,
+        string groupName, List<SectionInfo> sections)
+    {
+        foreach (var el in parent.Elements())
+        {
+            if (el.Name == ns + "Section")
+            {
+                if (el.Attribute("encrypted")?.Value == "true") continue;
+
+                sections.Add(new SectionInfo
+                {
+                    Id           = el.Attribute("ID")?.Value   ?? "",
+                    Name         = el.Attribute("name")?.Value ?? "Unnamed",
+                    NotebookId   = notebookId,
+                    NotebookName = notebookName,
+                    NotebookPath = notebookPath,
+                    GroupName    = groupName,
+                    IsCloud      = isCloud
+                });
+            }
+            else if (el.Name == ns + "SectionGroup")
+            {
+                if (el.Attribute("isRecycleBin")?.Value == "true") continue;
+
+                var gName = el.Attribute("name")?.Value ?? "Group";
+                CollectSections(el, ns, notebookId, notebookName, notebookPath, isCloud,
+                    string.IsNullOrEmpty(groupName) ? gName : $"{groupName} / {gName}",
+                    sections);
+            }
+        }
     }
 
     private void TryCloseOneNoteGracefully(IProgress<string>? progress)

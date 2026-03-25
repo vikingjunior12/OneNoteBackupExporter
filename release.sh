@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-VERSION="1.0.1"
+VERSION="1.1.0"
 TAG="v${VERSION}"
 SETUP_EXE="OneNoteBackupExporter_Setup_${VERSION}.exe"
 REPO="vikingjunior12/OneNoteBackupExporter"
@@ -37,11 +37,14 @@ gh release create "$TAG" "$SETUP_EXE" \
   --title "OneNoteBackupExporter $TAG" \
   --notes "## OneNoteBackupExporter $TAG
 
-### Bug Fixes
+### New Features
 
-- Fixed re-export failing when output files from a previous export already existed in the destination folder
-- Export progress now shows notebook counter (e.g. Notebook 2/7) throughout the entire export, including during the file write wait phase
-- OneNote sync-warning dialog (\"Trotzdem fortfahren?\") is now automatically confirmed during export — no manual interaction required
+- **Section export**: Notebooks can now be expanded to show individual sections — select and export only the sections you need
+- Sections from nested section groups are fully supported (shown as \`📂 Group / 📄 Section\`)
+- Encrypted and recycle-bin sections are automatically skipped
+- Mixed export: combine whole-notebook exports and section-level exports in a single run
+- Sections are saved into a notebook-named subfolder to keep the output organised (e.g. \`MyNotebook/Section1.onepkg\`)
+- Export button text dynamically reflects the selection (e.g. \`Export 1 notebook(s) + 3 section(s)\`)
 
 ### Installation
 1. Download \`$SETUP_EXE\`

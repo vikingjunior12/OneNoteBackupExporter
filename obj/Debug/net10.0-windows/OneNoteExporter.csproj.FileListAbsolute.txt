@@ -44,3 +44,4 @@ C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Debug\net10.0-windows\refi
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Debug\net10.0-windows\OneNoteExporter.pdb
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Debug\net10.0-windows\OneNoteExporter.genruntimeconfig.cache
 C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Debug\net10.0-windows\ref\OneNoteExporter.dll
+C:\Users\JLi1\Nextcloud\C#_pwsh\OneNoteExporterC#\obj\Debug\net10.0-windows\OneNoteExporter.sourcelink.json
